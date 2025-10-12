@@ -34,9 +34,14 @@ def chunk_text(text:str, chunk_size: int , chunk_overlap: int) -> List[Dict]:
     return [{"text": d.page_content, "metadata": d.metadata} for d in docs]
 
 #takes the chunks (list of dicts with "text" key) and returns list of embeddings (list of floats)
-#IMPROVEMENT: for very large datasets, consider saving embeddings incrementally to avoid high memory usage
-#IMPROVEMENT: add error handling for model loading and encoding
-#IMPROVEMENT: dont have the model reload every time if calling multiple times
+
+#Optimization ideas
+
+#Move model loading outside and pass a model instance in contexts where multiple calls happen.
+#Add device selection and detection (auto-detect GPU).
+#Add retry/backoff for model downloads (transient network failures).
+#If memory is tight, stream embeddings in smaller batches and flush to disk intermittently rather than producing a single vectors list.
+
 def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64,) -> List[List[float]]:
     model = SentenceTransformer(model_name)
     # chunks are expected to be dicts with a "text" key (see chunk_text)
@@ -46,6 +51,10 @@ def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64,) -> 
     # Convert numpy arrays to Python lists for JSON serialization
     return [v.tolist() for v in vectors]
 
+#Edge cases and improvements
+
+#Atomic writes: currently it writes directly to out_path — on interruption you may produce a partial file. Consider writing to a temp file and then renaming to atomic commit.
+##Concurrency: if multiple processes write to the same file, you'll get corrupted output — use unique output files or locks.
 
 def write_json1(out_path: str, records: List[Dict]) -> None:
     # If out_path is just a filename in the current directory, dirname may be empty.
@@ -56,10 +65,21 @@ def write_json1(out_path: str, records: List[Dict]) -> None:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 def main() -> int:
+    #parse command line arguments
+    #Argparse: you used both default and required=True for --model. If you set a default, remove required=True; 
+    # if you want required, remove default. Currently argparse ignores required if default is provided, but it's cleaner to choose one.
+#Metadata: you add {"source": normalized input path, "chunk_index": i} and an id. Good minimal provenance. 
+# Consider adding char offsets (start/end) so the chunk can be mapped back into the original file exactly.
+#Embedding and memory: embed_chunks returns all vectors at once and you then create a records list with all content before writing. 
+# For very many chunks, this doubles memory utilization (vectors + records). To reduce peak memory, consider streaming: encode in batches and write out each batch before encoding next (no need to store all vectors/records).
+#Progress bars: you show tqdm around writing records. You also set show_progress_bar=True in model.encode which 
+# shows SentenceTransformer's own progress. You may end up with overlapping progress output but it's fine.
     p = argparse.ArgumentParser(description = "Ingest .txt- -> chunks -> embeddings -> JSONL")
+    # required args: input file, output file, model name
     p.add_argument("--in", dest="inp", required=True, help= "Input .txt file (plain text)")
     p.add_argument("--out", dest="out", required=True, help= "Output .jsonl path")
-    p.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2", required=True, help= "Sentence transformer model name")
+    p.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2", help= "Sentence transformer model name")
+    # optional args: chunk size, chunk overlap, batch size
     p.add_argument("--chunk", dest="chunk", type=int, default=1000, help= "Approx chars per chunk")
     p.add_argument("--overlap", dest="overlap", type=int, default=100, help= "Overlap between chunks (chars))")
     p.add_argument("--batch", dest="batch", type=int, default=64, help= "Embedding batch size")
