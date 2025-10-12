@@ -104,11 +104,11 @@ def main() -> int:
     print(f"Chunking '{args.inp}' into ~{args.chunk} char chunks with {args.overlap} char overlap...")
     chunks = chunk_text(text, chunk_size=args.chunk, chunk_overlap=args.overlap)
     print(f"Created {len(chunks)} chunks.")
+
     if not chunks:
         print("Error: No chunks were created from the input text.", file=sys.stderr)
         return 4
     
- 
     #add simple metadata now; can enhance this later (page numbers, ect.)
     for i, c in enumerate(chunks):
         #creates a unique id for each chunk
