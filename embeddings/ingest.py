@@ -56,7 +56,7 @@ def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64,) -> 
 #Atomic writes: currently it writes directly to out_path — on interruption you may produce a partial file. Consider writing to a temp file and then renaming to atomic commit.
 ##Concurrency: if multiple processes write to the same file, you'll get corrupted output — use unique output files or locks.
 
-def write_json1(out_path: str, records: List[Dict]) -> None:
+def write_jsonl(out_path: str, records: List[Dict]) -> None:
     # If out_path is just a filename in the current directory, dirname may be empty.
     dir_name = os.path.dirname(out_path) or "."
     os.makedirs(dir_name, exist_ok=True)
@@ -85,15 +85,21 @@ def main() -> int:
     p.add_argument("--batch", dest="batch", type=int, default=64, help= "Embedding batch size")
     args = p.parse_args()
 
+
+    # validate args, to make sure it makes sense
     if not os.path.isfile(args.inp):
         print(f"Error: Input file {args.inp} does not exist.", file=sys.stderr)
         return 2
-    
+    #reads in the text file
     text = read_text(args.inp)
+
+    #makes sure its not some text file with just spaces or newlines
     if not text.strip():
         print(f"Error: Input file {args.inp} is empty or contains only whitespace.", file=sys.stderr)
         return 3
     
+
+    #creates the chunks from the text file and tells the user what its doing, and if it doesnt make any chunks, it will error out
     print(f"Chunking '{args.inp}' into ~{args.chunk} char chunks with {args.overlap} char overlap...")
     chunks = chunk_text(text, chunk_size=args.chunk, chunk_overlap=args.overlap)
     print(f"Created {len(chunks)} chunks.")
@@ -102,15 +108,20 @@ def main() -> int:
         return 4
     
  
-    #add simple metadata now; you can enhance this later (page numbers, ect.)
+    #add simple metadata now; can enhance this later (page numbers, ect.)
     for i, c in enumerate(chunks):
+        #creates a unique id for each chunk
         c["id"] = str(uuid.uuid4())
+        #adds the source file path and chunk index to the metadata, we can use this later for reference
         c["metadata"].update({"source": os.path.normpath(args.inp), "chunk_index": i})
 
+    #EMBEDDING STEP
     print(f"Embedding chunks using model '{args.model}' in batches of {args.batch}...")
     vectors = embed_chunks(chunks, model_name=args.model, batch_size=args.batch)
 
     records =[]
+    #creates the final records to write out, combining chunk text, metadata, id, and embedding vector
+    #combines the chunks and vectors into a single record for each chunk, zip iterates over two lists in parallel, all with progress bar
     for c,v in tqdm(list(zip(chunks, vectors)), total=len(chunks), desc="Writing JSONL"):
         records.append({
             "id": c["id"],
@@ -118,8 +129,8 @@ def main() -> int:
             "metadata": c["metadata"],
             "embedding": v
         })
-
-    write_json1(args.out, records)
+    #writes out the jsonl file
+    write_jsonl(args.out, records)
     print(f"Wrote {len(records)} records to '{args.out}'")
     return 0
 
