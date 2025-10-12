@@ -1,40 +1,56 @@
 import argparse, json, os, sys, uuid
 from typing import List, Dict
+#for the progress bars
 from tqdm import tqdm
+#langchain text splitters
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+#sentence transformers, uses huggingface models
 from sentence_transformers import SentenceTransformer
 
 def read_text(path:str) -> str:
     # Read text file with utf-8 encoding and ignore errors
     # If the data becomes more critical, consider using chardet to detect encoding
+    #if the file is large, consider reading in chunks or using memory-mapped files
     with open(path, 'r', encoding='utf-8', errors='ignore') as f:
         return f.read()
+    
+    
 # chunk_size and chunk_overlap are character counts (not tokens).
 # Token-aware splitting (e.g., by a tokenizer for the target embedding model) can be more precise to control model input sizes and cost.
 # this function currently uses default lanngchain text splitter which is character based.
 # If you want token-aware splitting, consider using tiktoken or similar libraries.
 # For production, consider splitting by tokens using the target model's tokenizer to ensure embeddings are within the model's maximum input length (e.g., 512/1024/2048 tokens).
+#i also want to vary chunk sizes based on content type (e.g., code vs prose), or technical vs non-technical text.
 def chunk_text(text:str, chunk_size: int , chunk_overlap: int) -> List[Dict]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
+        #if chunk overlap >= chunk_size:
+        #    raise ValueError("chunk_overlap must be less than chunk_size")
         # I want to keep paragraphs together, so split on double newlines first, then single newlines, then spaces, then characters
         separators=["\n\n", "\n", " ", ""],
     )
     docs = splitter.create_documents([text], metadatas=[{}])
     return [{"text": d.page_content, "metadata": d.metadata} for d in docs]
 
-
-
+#takes the chunks (list of dicts with "text" key) and returns list of embeddings (list of floats)
+#IMPROVEMENT: for very large datasets, consider saving embeddings incrementally to avoid high memory usage
+#IMPROVEMENT: add error handling for model loading and encoding
+#IMPROVEMENT: dont have the model reload every time if calling multiple times
 def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64,) -> List[List[float]]:
     model = SentenceTransformer(model_name)
-    texts = [c["texts"] for c in chunks]
-    vectors = model.encode(texts, batch_size=batch_size, convert_to_numpy =True, show_progress_bar=True)
-    return [v.toList() for v in vectors]
+    # chunks are expected to be dicts with a "text" key (see chunk_text)
+    texts = [c["text"] for c in chunks]
+    # encode returns a numpy array when convert_to_numpy=True
+    vectors = model.encode(texts, batch_size=batch_size, convert_to_numpy=True, show_progress_bar=True)
+    # Convert numpy arrays to Python lists for JSON serialization
+    return [v.tolist() for v in vectors]
 
 
 def write_json1(out_path: str, records: List[Dict]) -> None:
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    # If out_path is just a filename in the current directory, dirname may be empty.
+    dir_name = os.path.dirname(out_path) or "."
+    os.makedirs(dir_name, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
@@ -87,6 +103,9 @@ def main() -> int:
     print(f"Wrote {len(records)} records to '{args.out}'")
     return 0
 
+
+
+# just makes sure that main is being executed directly
 if __name__ == "__main__":
     sys.exit(main())
-    
+
