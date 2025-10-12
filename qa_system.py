@@ -22,7 +22,7 @@ query = input("Enter your question: ")
 # Embed it
 query_vector = model.encode(query, normalize_embeddings=True).tolist()
 
-# Connect to PostgreSQL (assuming that pgvector already exists)
+# Connect to PostgreSQL (assuming that pgvector already exists - store in .env file?) 
 DB_URL = os.getenv("DATABASE_URL")
 
 with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
@@ -47,5 +47,11 @@ retrieved_docs = [
     for row in rows
 ]
 
+# Create the State object
+state = {
+    "question": query,
+    "context": retrieved_docs,
+    "answer": ""   # will be filled in by the LLM generation step
+}
 
 
