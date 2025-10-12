@@ -53,9 +53,6 @@ def retrieve(state: State):
     # Step 4: Return updated context
     return {"context": retrieved_docs}
 
-
-
-
 # Create the State object
 state = {
     "question": query,
