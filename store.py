@@ -6,7 +6,7 @@ cur= conn.cursor()
 cur.execute("""
     CREATE TABLE IF NOT EXISTS documents(
         id SEIRAL PRIMARY KEY,
-        content TEXT,
+        content TEXT,git 
         metadata JSONB,
         embedding VECTOR(384)
 );
