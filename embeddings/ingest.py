@@ -1,3 +1,4 @@
+#Embedding ingestion script: reads a .txt file, chunks it, creates embeddings, writes to JSONL
 import argparse, json, os, sys, uuid
 from typing import List, Dict
 #for the progress bars
