@@ -8,12 +8,29 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 #sentence transformers, uses huggingface models
 from sentence_transformers import SentenceTransformer
 
-def read_text(path:str) -> str:
-    # Read text file with utf-8 encoding and ignore errors
-    # If the data becomes more critical, consider using chardet to detect encoding
-    #if the file is large, consider reading in chunks or using memory-mapped files
-    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-        return f.read()
+from pypdf import PdfReader
+def read_pdf(path: str) -> str:
+    """Read text content from a PDF file using pypdf."""
+    reader = PdfReader(path)
+    text = ""
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
+    return text
+
+def read_document(path: str) -> str:
+    """Read either a .txt or .pdf file into a single text string."""
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".txt":
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+            return f.read()
+    elif ext == ".pdf":
+        print(f"Detected PDF format. Extracting text from '{path}'...")
+        return read_pdf(path)
+    else:
+        raise ValueError(f"Unsupported file type '{ext}'. Please provide a .txt or .pdf file.")
+
     
     
 # chunk_size and chunk_overlap are character counts (not tokens).
@@ -92,7 +109,7 @@ def main() -> int:
         print(f"Error: Input file {args.inp} does not exist.", file=sys.stderr)
         return 2
     #reads in the text file
-    text = read_text(args.inp)
+    text = read_document(args.inp)
 
     #makes sure its not some text file with just spaces or newlines
     if not text.strip():
