@@ -7,7 +7,7 @@ from tqdm import tqdm
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 #sentence transformers, uses huggingface models
 from sentence_transformers import SentenceTransformer
-
+import docx2txt
 from pypdf import PdfReader
 def read_pdf(path: str) -> str:
     """Read text content from a PDF file using pypdf."""
@@ -19,6 +19,12 @@ def read_pdf(path: str) -> str:
             text += page_text + "\n"
     return text
 
+def read_docx(path: str) -> str:
+    """Extract text from a .docx file and return one big string."""
+    text = docx2txt.process(path) or ""
+    # light cleanup to normalize whitespace
+    return " ".join(text.split())
+
 def read_document(path: str) -> str:
     """Read either a .txt or .pdf file into a single text string."""
     ext = os.path.splitext(path)[1].lower()
@@ -28,6 +34,8 @@ def read_document(path: str) -> str:
     elif ext == ".pdf":
         print(f"Detected PDF format. Extracting text from '{path}'...")
         return read_pdf(path)
+    elif ext == ".docx":
+        text = read_docx(path)
     else:
         raise ValueError(f"Unsupported file type '{ext}'. Please provide a .txt or .pdf file.")
 
