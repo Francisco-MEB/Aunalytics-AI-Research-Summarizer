@@ -59,8 +59,9 @@ def retrieve(state: State):
 # Create the State object
 state = {
     "question": query,
-    "context": retrieved_docs,
-    "answer": ""   # will be filled in by the LLM generation step
+    "context": "context test",
+    "answer": "query received"   # will be filled in by the LLM generation step
 }
+print(state)
 
 
