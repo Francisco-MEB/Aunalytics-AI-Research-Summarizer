@@ -106,14 +106,20 @@ body {
   color: #ffffff; /* white text on hover */
 }
 
+
 /* ---------- HERO SECTION ---------- */
 .hero {
   text-align: center;
   padding: 120px 20px;
+  min-height: 100vh; /* Ensures full viewport height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   z-index: 1;
   overflow: hidden;
 }
+
 
 /* ---------- FLOATING GLOW CLOUDS ---------- */
 .hero::before {
@@ -245,34 +251,6 @@ body {
   .hero p {
     font-size: 1em;
   }
-}
-
-/* ---------- FEATURES SECTION ---------- */
-.features {
-  background-color: #001233; /* same navy background */
-  color: white;
-  text-align: center;
-  padding: 100px 20px;
-  position: relative;
-  z-index: 2;
-}
-
-.section-header {
-  max-width: 700px;
-  margin: 0 auto 60px;
-}
-
-.section-header h2 {
-  font-size: 2.5em;
-  font-weight: 700;
-  color: #89c2ff; /* light blue accent */
-  margin-bottom: 15px;
-}
-
-.section-header p {
-  color: #cbd5e1;
-  font-size: 1.1em;
-  line-height: 1.6;
 }
 
 /* ---------- GRID ---------- */
