@@ -35,9 +35,9 @@ def read_document(path: str) -> str:
         print(f"Detected PDF format. Extracting text from '{path}'...")
         return read_pdf(path)
     elif ext == ".docx":
-        text = read_docx(path)
+        return read_docx(path)
     else:
-        raise ValueError(f"Unsupported file type '{ext}'. Please provide a .txt or .pdf file.")
+        raise ValueError(f"Unsupported file type '{ext}'. Please provide a .txt, .pdf or .docx file.")
 
     
     
