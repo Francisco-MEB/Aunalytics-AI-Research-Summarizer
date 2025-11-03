@@ -83,10 +83,10 @@ def read_document(path: str) -> str:
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
     elif ext == ".pdf":
-        print(f"📄 Detected PDF format. Extracting text from '{path}'...")
+        print(f" Detected PDF format. Extracting text from '{path}'...")
         return read_pdf(path)
     elif ext == ".docx":
-        print(f"📄 Detected DOCX format. Extracting text from '{path}'...")
+        print(f" Detected DOCX format. Extracting text from '{path}'...")
         return read_docx(path)
     else:
         raise ValueError(
@@ -135,7 +135,7 @@ def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64) -> L
     Returns:
         List of embedding vectors (each is a list of floats)
     """
-    print(f"🤖 Loading model: {model_name}")
+    print(f" Loading model: {model_name}")
     model = SentenceTransformer(model_name)
     
     texts = [c["text"] for c in chunks]
@@ -239,31 +239,31 @@ Examples:
     
     # Validate input file exists
     if not os.path.isfile(args.inp):
-        print(f"❌ Error: Input file '{args.inp}' does not exist.", file=sys.stderr)
+        print(f" Error: Input file '{args.inp}' does not exist.", file=sys.stderr)
         return 2
     
     # Read document
-    print(f"\n📖 Reading document: {args.inp}")
+    print(f"\n Reading document: {args.inp}")
     try:
         text = read_document(args.inp)
     except Exception as e:
-        print(f"❌ Error reading document: {e}", file=sys.stderr)
+        print(f" Error reading document: {e}", file=sys.stderr)
         return 3
     
     # Validate content
     if not text.strip():
-        print(f"❌ Error: Document is empty or contains only whitespace.", file=sys.stderr)
+        print(f" Error: Document is empty or contains only whitespace.", file=sys.stderr)
         return 4
     
     print(f"✅ Read {len(text):,} characters")
     
     # Chunk the text
-    print(f"\n✂️  Chunking text (size={args.chunk}, overlap={args.overlap})...")
+    print(f"\n Chunking text (size={args.chunk}, overlap={args.overlap})...")
     chunks = chunk_text(text, chunk_size=args.chunk, chunk_overlap=args.overlap)
     print(f"✅ Created {len(chunks)} chunks")
     
     if not chunks:
-        print("❌ Error: No chunks were created from the input text.", file=sys.stderr)
+        print("Error: No chunks were created from the input text.", file=sys.stderr)
         return 5
     
     # Add metadata to each chunk
@@ -276,15 +276,15 @@ Examples:
         })
     
     # Generate embeddings
-    print(f"\n🤖 Generating embeddings...")
+    print(f"\n Generating embeddings...")
     try:
         vectors = embed_chunks(chunks, model_name=args.model, batch_size=args.batch)
     except Exception as e:
-        print(f"❌ Error generating embeddings: {e}", file=sys.stderr)
+        print(f"Error generating embeddings: {e}", file=sys.stderr)
         return 6
     
     # Combine chunks and embeddings into records
-    print(f"\n💾 Writing to {args.out}...")
+    print(f"\n Writing to {args.out}...")
     records = []
     for chunk, vector in zip(chunks, vectors):
         records.append({
@@ -297,8 +297,8 @@ Examples:
     # Write to JSONL
     try:
         write_jsonl(args.out, records)
-        print(f"✅ Successfully wrote {len(records)} records to '{args.out}'")
-        print(f"\n📊 Summary:")
+        print(f" Successfully wrote {len(records)} records to '{args.out}'")
+        print(f"\n Summary:")
         print(f"   - Input file: {args.inp}")
         print(f"   - Output file: {args.out}")
         print(f"   - Chunks created: {len(records)}")
@@ -306,7 +306,7 @@ Examples:
         print(f"   - Model used: {args.model}")
         return 0
     except Exception as e:
-        print(f"❌ Error writing output file: {e}", file=sys.stderr)
+        print(f"Error writing output file: {e}", file=sys.stderr)
         return 7
 
 if __name__ == "__main__":
