@@ -46,8 +46,8 @@ def load_jsonl(file_path):
     records = []
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
-            if line.strip():
-                records.append(json.loads(line))
+            if line.strip():  # Skip empty lines
+                records.append(json.loads(line))  # Load JSON object
     return records
 
 def upload_records(conn, records):
@@ -55,12 +55,12 @@ def upload_records(conn, records):
     with conn.cursor() as cur:
         inserted = 0
         updated = 0
-        
-        for record in tqdm(records, desc="Uploading to database"):
+
+        for record in tqdm(records, desc="Uploading to database"):  # tqdm progress bar
             doc_id = record['id']
             content = record['text']
             embedding = record['embedding']
-            metadata = json.dumps(record['metadata'])
+            metadata = json.dumps(record['metadata']) # dump metadata as JSON string
             
             # Upsert: insert or update if exists
             cur.execute("""
@@ -84,13 +84,18 @@ def upload_records(conn, records):
 def main():
     parser = argparse.ArgumentParser(description="Upload JSONL embeddings to PostgreSQL/pgvector")
     parser.add_argument("--input", "-i", required=True, help="Input JSONL file path")
-    parser.add_argument("--db-url", help="Database URL (or use DATABASE_URL env var)")
     args = parser.parse_args()
     
-    # Get database URL
-    db_url = args.db_url or os.getenv("DATABASE_URL")
-    if not db_url:
-        print("❌ Error: DATABASE_URL not set. Provide --db-url or set DATABASE_URL environment variable")
+    # Get connection parameters from .env
+    user = os.getenv("user")
+    password = os.getenv("password")
+    host = os.getenv("host")
+    port = os.getenv("port")
+    dbname = os.getenv("dbname")
+    
+    if not all([user, password, host, port, dbname]):
+        print("❌ Error: Missing connection parameters in .env file")
+        print("Required: user, password, host, port, dbname")
         return 1
     
     # Validate input file
@@ -99,9 +104,15 @@ def main():
         return 2
     
     try:
-        # Connect to database
+        # Connect to database using individual parameters
         print(f"🔌 Connecting to database...")
-        conn = psycopg2.connect(db_url)
+        conn = psycopg2.connect(
+            user=user,
+            password=password,
+            host=host,
+            port=port,
+            dbname=dbname
+        )
         print("✅ Connected successfully!")
         
         # Create table if needed

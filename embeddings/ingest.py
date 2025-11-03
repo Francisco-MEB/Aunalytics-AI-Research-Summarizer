@@ -140,7 +140,7 @@ def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64) -> L
     
     texts = [c["text"] for c in chunks]
     
-    print(f"🔄 Generating embeddings for {len(texts)} chunks...")
+    print(f"Generating embeddings for {len(texts)} chunks...")
     vectors = model.encode(
         texts,
         batch_size=batch_size,
@@ -255,12 +255,12 @@ Examples:
         print(f" Error: Document is empty or contains only whitespace.", file=sys.stderr)
         return 4
     
-    print(f"✅ Read {len(text):,} characters")
+    print(f"Read {len(text):,} characters")
     
     # Chunk the text
     print(f"\n Chunking text (size={args.chunk}, overlap={args.overlap})...")
     chunks = chunk_text(text, chunk_size=args.chunk, chunk_overlap=args.overlap)
-    print(f"✅ Created {len(chunks)} chunks")
+    print(f"Created {len(chunks)} chunks")
     
     if not chunks:
         print("Error: No chunks were created from the input text.", file=sys.stderr)

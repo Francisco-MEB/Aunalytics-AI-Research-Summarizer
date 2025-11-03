@@ -31,18 +31,23 @@ class QASystem:
     
     def __init__(self):
         """Initialize the QA system with all required components."""
-        print("🔧 Initializing QA System...")
+        print("Initializing QA System...")
         
         # Load embedding model (same model used in ingestion)
-        print("📥 Loading embedding model...")
+        print("Loading embedding model...")
         self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         
-        # Get database connection string
-        self.db_url = os.getenv("DATABASE_URL")
-        if not self.db_url:
+        # Get database connection parameters
+        self.db_user = os.getenv("user")
+        self.db_password = os.getenv("password")
+        self.db_host = os.getenv("host")
+        self.db_port = os.getenv("port")
+        self.db_name = os.getenv("dbname")
+        
+        if not all([self.db_user, self.db_password, self.db_host, self.db_port, self.db_name]):
             raise ValueError(
-                "DATABASE_URL environment variable not set. "
-                "Please set it in your .env file."
+                "Database connection parameters not set. "
+                "Please set user, password, host, port, and dbname in your .env file."
             )
         
         # Configure Gemini API
@@ -56,7 +61,7 @@ class QASystem:
         genai.configure(api_key=self.gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
         
-        print("✅ QA System initialized successfully!\n")
+        print("QA System initialized successfully!\n")
     
     def retrieve_context(self, question: str, top_k: int = 4) -> List[Document]:
         """
@@ -80,7 +85,14 @@ class QASystem:
 
         # Query database for similar vectors
         try:
-            with psycopg2.connect(self.db_url) as conn, conn.cursor() as cur:
+            conn = psycopg2.connect(
+                user=self.db_user,
+                password=self.db_password,
+                host=self.db_host,
+                port=self.db_port,
+                dbname=self.db_name
+            )
+            with conn.cursor() as cur:
                 # pgvector's <=> operator computes cosine distance
                 # 1 - distance = similarity score
                 cur.execute(
@@ -93,6 +105,8 @@ class QASystem:
                     (query_vector, query_vector, top_k)
                 )
                 rows = cur.fetchall()
+            
+            conn.close()
 
             # Convert to LangChain Document objects
             retrieved_docs = [
@@ -106,7 +120,7 @@ class QASystem:
             return retrieved_docs
             
         except Exception as e:
-            print(f"❌ Database error: {e}")
+            print(f"Database error: {e}")
             return []
     
     def generate_answer(self, question: str, context: List[Document]) -> str:
@@ -163,7 +177,7 @@ Answer:"""
                 return "I apologize, but I couldn't generate a proper response. Please try rephrasing your question."
                 
         except Exception as e:
-            print(f"❌ Gemini API error: {e}")
+            print(f"Gemini API error: {e}")
             # Fallback: return context summary if Gemini fails
             return (
                 f"I found {len(context)} relevant documents but encountered an error generating the response. "
@@ -181,16 +195,16 @@ Answer:"""
         Returns:
             Dict with keys: question, answer, context, num_sources
         """
-        print(f"🔍 Searching for relevant context...")
+        print(f"Searching for relevant context...")
         context = self.retrieve_context(question)
         
-        print(f"📚 Found {len(context)} relevant documents")
+        print(f"Found {len(context)} relevant documents")
         for i, doc in enumerate(context, 1):
             score = doc.metadata.get('score', 0)
             preview = doc.page_content[:100].replace('\n', ' ')
             print(f"   {i}. Relevance: {score:.2%} | {preview}...")
         
-        print(f"\n🤖 Generating answer with Gemini...")
+        print(f"\n Generating answer with Gemini...")
         answer = self.generate_answer(question, context)
         
         return {
@@ -204,20 +218,20 @@ Answer:"""
 def main():
     """Main function to run the QA system interactively."""
     print("=" * 70)
-    print("  🤖 AI Research Summarizer - Question Answering System")
+    print("  AI Research Summarizer - Question Answering System")
     print("=" * 70)
     
     try:
         qa_system = QASystem()
         
         print("\n� Tip: Ask questions about the documents in your database")
-        print("💡 Type 'quit', 'exit', or 'q' to stop\n")
+        print("Type 'quit', 'exit', or 'q' to stop\n")
         
         while True:
-            question = input("❓ Your question: ").strip()
+            question = input(" Your question: ").strip()
             
             if question.lower() in ['quit', 'exit', 'q']:
-                print("\n👋 Thank you for using the QA system. Goodbye!")
+                print("\n Thank you for using the QA system. Goodbye!")
                 break
             
             if not question:
@@ -230,18 +244,18 @@ def main():
             
             # Display results
             print(f"\n{'='*70}")
-            print(f"💡 ANSWER:")
+            print(f" ANSWER:")
             print(f"{'='*70}")
             print(result['answer'])
             print(f"\n{'='*70}")
-            print(f"📖 Sources used: {result['num_sources']}")
+            print(f" Sources used: {result['num_sources']}")
             print(f"{'='*70}\n")
                     
     except KeyboardInterrupt:
-        print("\n\n👋 Interrupted. Goodbye!")
+        print("\n\n Interrupted. Goodbye!")
     except Exception as e:
-        print(f"\n❌ Error starting QA system: {e}")
-        print("💡 Make sure your .env file is configured with:")
+        print(f"\n Error starting QA system: {e}")
+        print(" Make sure your .env file is configured with:")
         print("   - DATABASE_URL (PostgreSQL connection string)")
         print("   - GEMINI_API_KEY (Google Gemini API key)")
 
