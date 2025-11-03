@@ -1,11 +1,13 @@
 import psycopg2
 
-conn= psycopg2.connect("your_supabase_connection_string")
+DATABASE_URL = "hi"
+
+conn= psycopg2.connect("DATABASE_URL")
 cur= conn.cursor()
 
 cur.execute("""
     CREATE TABLE IF NOT EXISTS documents(
-        id SEIRAL PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         content TEXT,
         metadata JSONB,
         embedding VECTOR(384)

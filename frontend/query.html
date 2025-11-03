@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Momo+Trust+Display&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Submit Query - Aunalytics RAG</title>
+
+</head>
+<body>
+
+  <!-- NAVBAR SECTION -->
+  <nav class="navbar">
+    <div class="logo">
+      <img src="images/LOGO.png" alt="My Logo" class="logo-img">
+    </div>
+
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="#">Support</a></li>
+    </ul>
+
+    <div class="nav-buttons">
+      <button class="btn-outline">Sign In</button>
+      <button class="btn-primary">Sign Up</button>
+    </div>
+  </nav>
+
+  <!-- QUERY PAGE CONTENT -->
+  <div class="query-container">
+    <a href="index.html" class="back-link">Back to Home</a>
+    
+    <div class="page-header">
+      <h1>Submit Your Query</h1>
+      <p>Upload your PDF and ask questions to get insights from your professor's research</p>
+    </div>
+
+    <div class="query-card">
+      <form action="/api/upload" method="POST" enctype="multipart/form-data">
+        
+        <!-- User Query -->
+        <div class="form-group">
+          <label for="query" class="form-label">Your Question:</label>
+          <textarea 
+            class="form-control" 
+            id="query" 
+            name="query" 
+            rows="5" 
+            placeholder="Type your question here..." 
+            required
+          ></textarea>
+        </div>
+
+        <!-- PDF Upload -->
+        <div class="form-group">
+          <label for="file" class="form-label">Upload PDF:</label>
+          <input 
+            class="form-control" 
+            type="file" 
+            id="file" 
+            name="file" 
+            accept="application/pdf" 
+            required
+          >
+        </div>
+
+        <!-- Submit Button -->
+        <div class="button-wrapper">
+          <button class="submit-btn" type="submit">Submit Query</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>
