@@ -1,16 +1,45 @@
-#Embedding ingestion script: reads a .txt file, chunks it, creates embeddings, writes to JSONL
-import argparse, json, os, sys, uuid
+#!/usr/bin/env python3
+"""
+Document Ingestion Script for AI Research Summarizer
+====================================================
+Processes documents (PDF, DOCX, TXT) and creates embeddings for vector search.
+
+Workflow:
+1. Read document and extract text
+2. Split text into chunks (with overlap for context)
+3. Generate embeddings using sentence-transformers
+4. Save to JSONL format with metadata
+
+Output: JSONL file where each line contains:
+{
+    "id": "unique-uuid",
+    "text": "chunk text content",
+    "metadata": {"source": "file_path", "chunk_index": 0},
+    "embedding": [0.123, 0.456, ...]  # 384-dim vector
+}
+"""
+import argparse
+import json
+import os
+import sys
+import uuid
 from typing import List, Dict
-#for the progress bars
+
 from tqdm import tqdm
-#langchain text splitters
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-#sentence transformers, uses huggingface models
 from sentence_transformers import SentenceTransformer
 import docx2txt
 from pypdf import PdfReader
 def read_pdf(path: str) -> str:
-    """Read text content from a PDF file using pypdf."""
+    """
+    Read text content from a PDF file.
+    
+    Args:
+        path: Path to PDF file
+        
+    Returns:
+        Extracted text from all pages
+    """
     reader = PdfReader(path)
     text = ""
     for page in reader.pages:
@@ -19,150 +48,266 @@ def read_pdf(path: str) -> str:
             text += page_text + "\n"
     return text
 
+
 def read_docx(path: str) -> str:
-    """Extract text from a .docx file and return one big string."""
+    """
+    Extract text from a DOCX file.
+    
+    Args:
+        path: Path to DOCX file
+        
+    Returns:
+        Extracted text with normalized whitespace
+    """
     text = docx2txt.process(path) or ""
-    # light cleanup to normalize whitespace
+    # Normalize whitespace
     return " ".join(text.split())
 
+
 def read_document(path: str) -> str:
-    """Read either a .txt or .pdf file into a single text string."""
+    """
+    Read document and extract text (supports TXT, PDF, DOCX).
+    
+    Args:
+        path: Path to document file
+        
+    Returns:
+        Extracted text content
+        
+    Raises:
+        ValueError: If file type is not supported
+    """
     ext = os.path.splitext(path)[1].lower()
+    
     if ext == ".txt":
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
     elif ext == ".pdf":
-        print(f"Detected PDF format. Extracting text from '{path}'...")
+        print(f" Detected PDF format. Extracting text from '{path}'...")
         return read_pdf(path)
     elif ext == ".docx":
+        print(f" Detected DOCX format. Extracting text from '{path}'...")
         return read_docx(path)
     else:
-        raise ValueError(f"Unsupported file type '{ext}'. Please provide a .txt, .pdf or .docx file.")
+        raise ValueError(
+            f"Unsupported file type '{ext}'. "
+            f"Supported formats: .txt, .pdf, .docx"
+        )
 
+def chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> List[Dict]:
+    """
+    Split text into overlapping chunks for processing.
     
+    Chunks are created with overlap to preserve context across boundaries.
+    Uses RecursiveCharacterTextSplitter which tries to split on:
+    1. Double newlines (paragraphs)
+    2. Single newlines
+    3. Spaces
+    4. Characters (as last resort)
     
-# chunk_size and chunk_overlap are character counts (not tokens).
-# Token-aware splitting (e.g., by a tokenizer for the target embedding model) can be more precise to control model input sizes and cost.
-# this function currently uses default lanngchain text splitter which is character based.
-# If you want token-aware splitting, consider using tiktoken or similar libraries.
-# For production, consider splitting by tokens using the target model's tokenizer to ensure embeddings are within the model's maximum input length (e.g., 512/1024/2048 tokens).
-#i also want to vary chunk sizes based on content type (e.g., code vs prose), or technical vs non-technical text.
-def chunk_text(text:str, chunk_size: int , chunk_overlap: int) -> List[Dict]:
+    Args:
+        text: Input text to chunk
+        chunk_size: Target size in characters
+        chunk_overlap: Overlap between chunks in characters
+        
+    Returns:
+        List of dicts with 'text' and 'metadata' keys
+    """
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
-        #if chunk overlap >= chunk_size:
-        #    raise ValueError("chunk_overlap must be less than chunk_size")
-        # I want to keep paragraphs together, so split on double newlines first, then single newlines, then spaces, then characters
         separators=["\n\n", "\n", " ", ""],
     )
+    
     docs = splitter.create_documents([text], metadatas=[{}])
     return [{"text": d.page_content, "metadata": d.metadata} for d in docs]
 
-#takes the chunks (list of dicts with "text" key) and returns list of embeddings (list of floats)
 
-#Optimization ideas
-
-#Move model loading outside and pass a model instance in contexts where multiple calls happen.
-#Add device selection and detection (auto-detect GPU).
-#Add retry/backoff for model downloads (transient network failures).
-#If memory is tight, stream embeddings in smaller batches and flush to disk intermittently rather than producing a single vectors list.
-
-def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64,) -> List[List[float]]:
+def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64) -> List[List[float]]:
+    """
+    Generate embeddings for text chunks using sentence-transformers.
+    
+    Args:
+        chunks: List of chunk dicts (each with 'text' key)
+        model_name: HuggingFace model name (e.g., 'sentence-transformers/all-MiniLM-L6-v2')
+        batch_size: Number of texts to process at once
+        
+    Returns:
+        List of embedding vectors (each is a list of floats)
+    """
+    print(f" Loading model: {model_name}")
     model = SentenceTransformer(model_name)
-    # chunks are expected to be dicts with a "text" key (see chunk_text)
+    
     texts = [c["text"] for c in chunks]
-    # encode returns a numpy array when convert_to_numpy=True
-    vectors = model.encode(texts, batch_size=batch_size, convert_to_numpy=True, show_progress_bar=True)
+    
+    print(f"Generating embeddings for {len(texts)} chunks...")
+    vectors = model.encode(
+        texts,
+        batch_size=batch_size,
+        convert_to_numpy=True,
+        show_progress_bar=True,
+        normalize_embeddings=True  # L2 normalization for cosine similarity
+    )
+    
     # Convert numpy arrays to Python lists for JSON serialization
     return [v.tolist() for v in vectors]
 
-#Edge cases and improvements
-
-#Atomic writes: currently it writes directly to out_path — on interruption you may produce a partial file. Consider writing to a temp file and then renaming to atomic commit.
-##Concurrency: if multiple processes write to the same file, you'll get corrupted output — use unique output files or locks.
 
 def write_jsonl(out_path: str, records: List[Dict]) -> None:
-    # If out_path is just a filename in the current directory, dirname may be empty.
+    """
+    Write records to JSONL file (one JSON object per line).
+    
+    Args:
+        out_path: Output file path
+        records: List of dicts to write
+    """
+    # Create directory if it doesn't exist
     dir_name = os.path.dirname(out_path) or "."
     os.makedirs(dir_name, exist_ok=True)
+    
     with open(out_path, "w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 def main() -> int:
-    #parse command line arguments
-    #Argparse: you used both default and required=True for --model. If you set a default, remove required=True; 
-    # if you want required, remove default. Currently argparse ignores required if default is provided, but it's cleaner to choose one.
-#Metadata: you add {"source": normalized input path, "chunk_index": i} and an id. Good minimal provenance. 
-# Consider adding char offsets (start/end) so the chunk can be mapped back into the original file exactly.
-#Embedding and memory: embed_chunks returns all vectors at once and you then create a records list with all content before writing. 
-# For very many chunks, this doubles memory utilization (vectors + records). To reduce peak memory, consider streaming: encode in batches and write out each batch before encoding next (no need to store all vectors/records).
-#Progress bars: you show tqdm around writing records. You also set show_progress_bar=True in model.encode which 
-# shows SentenceTransformer's own progress. You may end up with overlapping progress output but it's fine.
-    p = argparse.ArgumentParser(description = "Ingest .txt- -> chunks -> embeddings -> JSONL")
-    # required args: input file, output file, model name
-    p.add_argument("--in", dest="inp", required=True, help= "Input .txt file (plain text)")
-    p.add_argument("--out", dest="out", required=True, help= "Output .jsonl path")
-    p.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2", help= "Sentence transformer model name")
-    # optional args: chunk size, chunk overlap, batch size
-    p.add_argument("--chunk", dest="chunk", type=int, default=1000, help= "Approx chars per chunk")
-    p.add_argument("--overlap", dest="overlap", type=int, default=100, help= "Overlap between chunks (chars))")
-    p.add_argument("--batch", dest="batch", type=int, default=64, help= "Embedding batch size")
-    args = p.parse_args()
-
-
-    # validate args, to make sure it makes sense
+    """
+    Main entry point for document ingestion.
+    
+    Returns:
+        Exit code (0 for success, non-zero for errors)
+    """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Ingest documents -> chunks -> embeddings -> JSONL",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Process a PDF with default settings
+  python ingest.py --in research.pdf --out embeddings.jsonl
+  
+  # Custom chunk size and model
+  python ingest.py --in paper.pdf --out data.jsonl --chunk 500 --overlap 50
+  
+  # Use different embedding model
+  python ingest.py --in doc.txt --out out.jsonl --model sentence-transformers/paraphrase-MiniLM-L6-v2
+        """
+    )
+    
+    # Required arguments
+    parser.add_argument(
+        "--in",
+        dest="inp",
+        required=True,
+        help="Input file path (.txt, .pdf, or .docx)"
+    )
+    parser.add_argument(
+        "--out",
+        dest="out",
+        required=True,
+        help="Output JSONL file path"
+    )
+    
+    # Optional arguments
+    parser.add_argument(
+        "--model",
+        default="sentence-transformers/all-MiniLM-L6-v2",
+        help="Sentence transformer model name (default: all-MiniLM-L6-v2)"
+    )
+    parser.add_argument(
+        "--chunk",
+        dest="chunk",
+        type=int,
+        default=1000,
+        help="Approximate characters per chunk (default: 1000)"
+    )
+    parser.add_argument(
+        "--overlap",
+        dest="overlap",
+        type=int,
+        default=100,
+        help="Overlap between chunks in characters (default: 100)"
+    )
+    parser.add_argument(
+        "--batch",
+        dest="batch",
+        type=int,
+        default=64,
+        help="Embedding batch size (default: 64)"
+    )
+    
+    args = parser.parse_args()
+    
+    # Validate input file exists
     if not os.path.isfile(args.inp):
-        print(f"Error: Input file {args.inp} does not exist.", file=sys.stderr)
+        print(f" Error: Input file '{args.inp}' does not exist.", file=sys.stderr)
         return 2
-    #reads in the text file
-    text = read_document(args.inp)
-
-    #makes sure its not some text file with just spaces or newlines
-    if not text.strip():
-        print(f"Error: Input file {args.inp} is empty or contains only whitespace.", file=sys.stderr)
+    
+    # Read document
+    print(f"\n Reading document: {args.inp}")
+    try:
+        text = read_document(args.inp)
+    except Exception as e:
+        print(f" Error reading document: {e}", file=sys.stderr)
         return 3
     
-
-    #creates the chunks from the text file and tells the user what its doing, and if it doesnt make any chunks, it will error out
-    print(f"Chunking '{args.inp}' into ~{args.chunk} char chunks with {args.overlap} char overlap...")
-    chunks = chunk_text(text, chunk_size=args.chunk, chunk_overlap=args.overlap)
-    print(f"Created {len(chunks)} chunks.")
-
-    if not chunks:
-        print("Error: No chunks were created from the input text.", file=sys.stderr)
+    # Validate content
+    if not text.strip():
+        print(f" Error: Document is empty or contains only whitespace.", file=sys.stderr)
         return 4
     
-    #add simple metadata now; can enhance this later (page numbers, ect.)
-    for i, c in enumerate(chunks):
-        #creates a unique id for each chunk
-        c["id"] = str(uuid.uuid4())
-        #adds the source file path and chunk index to the metadata, we can use this later for reference
-        c["metadata"].update({"source": os.path.normpath(args.inp), "chunk_index": i})
-
-    #EMBEDDING STEP
-    print(f"Embedding chunks using model '{args.model}' in batches of {args.batch}...")
-    vectors = embed_chunks(chunks, model_name=args.model, batch_size=args.batch)
-
-    records =[]
-    #creates the final records to write out, combining chunk text, metadata, id, and embedding vector
-    #combines the chunks and vectors into a single record for each chunk, zip iterates over two lists in parallel, all with progress bar
-    for c,v in tqdm(list(zip(chunks, vectors)), total=len(chunks), desc="Writing JSONL"):
-        records.append({
-            "id": c["id"],
-            "text": c["text"],
-            "metadata": c["metadata"],
-            "embedding": v
+    print(f"Read {len(text):,} characters")
+    
+    # Chunk the text
+    print(f"\n Chunking text (size={args.chunk}, overlap={args.overlap})...")
+    chunks = chunk_text(text, chunk_size=args.chunk, chunk_overlap=args.overlap)
+    print(f"Created {len(chunks)} chunks")
+    
+    if not chunks:
+        print("Error: No chunks were created from the input text.", file=sys.stderr)
+        return 5
+    
+    # Add metadata to each chunk
+    for i, chunk in enumerate(chunks):
+        chunk["id"] = str(uuid.uuid4())
+        chunk["metadata"].update({
+            "source": os.path.normpath(args.inp),
+            "chunk_index": i,
+            "total_chunks": len(chunks)
         })
-    #writes out the jsonl file
-    write_jsonl(args.out, records)
-    print(f"Wrote {len(records)} records to '{args.out}'")
-    return 0
+    
+    # Generate embeddings
+    print(f"\n Generating embeddings...")
+    try:
+        vectors = embed_chunks(chunks, model_name=args.model, batch_size=args.batch)
+    except Exception as e:
+        print(f"Error generating embeddings: {e}", file=sys.stderr)
+        return 6
+    
+    # Combine chunks and embeddings into records
+    print(f"\n Writing to {args.out}...")
+    records = []
+    for chunk, vector in zip(chunks, vectors):
+        records.append({
+            "id": chunk["id"],
+            "text": chunk["text"],
+            "metadata": chunk["metadata"],
+            "embedding": vector
+        })
+    
+    # Write to JSONL
+    try:
+        write_jsonl(args.out, records)
+        print(f" Successfully wrote {len(records)} records to '{args.out}'")
+        print(f"\n Summary:")
+        print(f"   - Input file: {args.inp}")
+        print(f"   - Output file: {args.out}")
+        print(f"   - Chunks created: {len(records)}")
+        print(f"   - Embedding dimension: {len(vectors[0]) if vectors else 0}")
+        print(f"   - Model used: {args.model}")
+        return 0
+    except Exception as e:
+        print(f"Error writing output file: {e}", file=sys.stderr)
+        return 7
 
-
-
-# just makes sure that main is being executed directly
 if __name__ == "__main__":
     sys.exit(main())
-
