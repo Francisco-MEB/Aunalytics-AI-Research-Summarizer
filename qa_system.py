@@ -7,10 +7,17 @@ import google.generativeai as genai
 
 
 class QASystem:
-    def __init__(self):
-        """Initialize the QA system with embedding model, database connection, and Gemini"""
+    def __init__(self, user_id: str = None):
+        """Initialize the QA system with embedding model, database connection, and Gemini
+        
+        Args:
+            user_id: Optional UUID for Row Level Security. If provided, only queries user's documents.
+        """
         # Initialize embedding model (same as ingest.py)
         self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        
+        # Store user_id for RLS
+        self.user_id = user_id
         
         # Initialize database connection
         self.db_url = os.getenv("DATABASE_URL")
@@ -28,7 +35,7 @@ class QASystem:
     def retrieve_context(self, question: str) -> List[Document]:
         """
         Retrieves the top-k most similar text chunks from the pgvector database
-        based on the user's question.
+        based on the user's question. Respects RLS if user_id is set.
         """
         # Embed the user's question
         query_vector = self.model.encode(question, normalize_embeddings=True).tolist()
@@ -36,15 +43,29 @@ class QASystem:
         # Connect to PostgreSQL and search
         try:
             with psycopg2.connect(self.db_url) as conn, conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT doc_id, content, 1 - (embedding <=> %s::vector) AS similarity
-                    FROM documents
-                    ORDER BY embedding <=> %s::vector
-                    LIMIT 4;
-                    """,
-                    (query_vector, query_vector)
-                )
+                # If user_id is set, filter by it (RLS will also enforce this)
+                if self.user_id:
+                    cur.execute(
+                        """
+                        SELECT doc_id, content, 1 - (embedding <=> %s::vector) AS similarity
+                        FROM documents
+                        WHERE user_id = %s
+                        ORDER BY embedding <=> %s::vector
+                        LIMIT 4;
+                        """,
+                        (query_vector, self.user_id, query_vector)
+                    )
+                else:
+                    # No user_id filter - search all accessible documents
+                    cur.execute(
+                        """
+                        SELECT doc_id, content, 1 - (embedding <=> %s::vector) AS similarity
+                        FROM documents
+                        ORDER BY embedding <=> %s::vector
+                        LIMIT 4;
+                        """,
+                        (query_vector, query_vector)
+                    )
                 rows = cur.fetchall()
 
             # Wrap rows into LangChain Document objects
@@ -123,9 +144,20 @@ Answer:"""
 
 def main():
     """Main function to run the QA system"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Research QA System with RLS support")
+    parser.add_argument("--user-id", dest="user_id", type=str, default=None,
+                       help="User UUID for Row Level Security (optional)")
+    args = parser.parse_args()
+    
     try:
-        qa_system = QASystem()
+        qa_system = QASystem(user_id=args.user_id)
         print("🚀 QA System initialized successfully!")
+        if args.user_id:
+            print(f"🔑 RLS enabled - Querying documents for user: {args.user_id}")
+        else:
+            print("🌐 RLS disabled - Querying all accessible documents")
         print("💡 Make sure your DATABASE_URL environment variable is set")
         
         while True:
