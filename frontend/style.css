@@ -641,3 +641,57 @@ textarea.form-control {
     height: 500px; 
   }
 }
+
+/* --- CHAT ATTACHMENT STYLES --- */
+
+.chat-input-area {
+  /* Ensure flex is still working to align items side-by-side */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-attach-btn {
+  background: transparent;
+  border: 1px solid rgba(137, 194, 255, 0.3);
+  color: #89c2ff;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0; /* Prevents button from getting squished */
+}
+
+.chat-attach-btn:hover {
+  background: rgba(137, 194, 255, 0.1);
+  border-color: #89c2ff;
+}
+
+.chat-attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(137, 194, 255, 0.1);
+}
+
+/* Add a visual indicator when a file is selected */
+.file-selected-badge {
+  background: #002855;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #0077ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.remove-file-btn {
+  cursor: pointer;
+  color: #ff4444;
+  font-weight: bold;
+}
