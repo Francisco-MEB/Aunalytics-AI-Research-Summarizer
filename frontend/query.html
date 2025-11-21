@@ -9,11 +9,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
   <title>Submit Query - Aunalytics RAG</title>
-
 </head>
 <body>
 
-  <!-- NAVBAR SECTION -->
   <nav class="navbar">
     <div class="logo">
       <img src="images/LOGO.png" alt="My Logo" class="logo-img">
@@ -31,7 +29,6 @@
     </div>
   </nav>
 
-  <!-- QUERY PAGE CONTENT -->
   <div class="query-container">
     <a href="index.html" class="back-link">Back to Home</a>
     
@@ -43,7 +40,6 @@
     <div class="query-card">
       <form action="/api/upload" method="POST" enctype="multipart/form-data">
         
-        <!-- User Query -->
         <div class="form-group">
           <label for="query" class="form-label">Your Question:</label>
           <textarea 
@@ -56,7 +52,6 @@
           ></textarea>
         </div>
 
-        <!-- PDF Upload -->
         <div class="form-group">
           <label for="file" class="form-label">Upload PDF:</label>
           <input 
@@ -69,7 +64,6 @@
           >
         </div>
 
-        <!-- Submit Button -->
         <div class="button-wrapper">
           <button class="submit-btn" type="submit">Submit Query</button>
         </div>
