@@ -383,3 +383,261 @@ textarea.form-control {
     padding: 0 20px; /* Remove the large vertical padding to let flexbox center it */
   }
 }
+
+/* Wrapper for the whole dashboard */
+/* ==================================================== */
+/* ---------- DASHBOARD LAYOUT (FIXED) ---------- */
+/* ==================================================== */
+
+/* Wrapper for the whole dashboard */
+.dashboard-container {
+  width: 96%; /* CHANGED: Use % so it fits any screen size */
+  max-width: 1400px; 
+  margin: 0 auto;
+  padding: 30px 20px;
+  min-height: calc(100vh - 90px);
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.section-label {
+  display: block;
+  color: #89c2ff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* --- 1. URL SECTION --- */
+.url-section {
+  background: #001845;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(137, 194, 255, 0.2);
+}
+
+.url-input-wrapper {
+  display: flex;
+  gap: 15px;
+}
+
+.scrape-btn {
+  white-space: nowrap;
+}
+
+/* --- 2. SPLIT LAYOUT (LEFT & RIGHT) --- */
+.split-layout {
+  display: flex;
+  gap: 25px;
+  flex: 1; 
+  min-height: 0; /* Important for nested scrolling */
+}
+
+/* --- LEFT PANEL --- */
+.left-panel {
+  flex: 6; /* Takes up ~60% space */
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  
+  /* CRITICAL FIX: This stops the scrollbar from pushing the page wide */
+  min-width: 0; 
+}
+
+.summary-box {
+  flex: 1; 
+  background: #001845;
+  border: 1px solid rgba(137, 194, 255, 0.2);
+  border-radius: 16px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 250px;
+}
+
+.placeholder-text {
+  color: rgba(255,255,255,0.3);
+  font-style: italic;
+  text-align: center;
+}
+
+/* --- HORIZONTAL SCROLLABLE PAPERS --- */
+.papers-section {
+  /* Container logic handled by flex parent */
+}
+
+.papers-scroller {
+  display: flex;
+  gap: 15px;
+  overflow-x: auto; /* Enables horizontal scroll */
+  padding-bottom: 10px;
+  
+  /* Optional: Make scrolling smooth */
+  scroll-behavior: smooth; 
+}
+
+/* Custom Scrollbar */
+.papers-scroller::-webkit-scrollbar {
+  height: 8px;
+}
+.papers-scroller::-webkit-scrollbar-track {
+  background: #001233;
+  border-radius: 4px;
+}
+.papers-scroller::-webkit-scrollbar-thumb {
+  background: #0077ff; 
+  border-radius: 4px;
+}
+
+.paper-card {
+  min-width: 140px; /* Fixed width for each card */
+  height: 160px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.paper-card:hover {
+  transform: translateY(-5px);
+  background: #eef6ff;
+}
+
+.paper-icon {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.paper-title {
+  color: #001233;
+  font-size: 0.7rem;
+  text-align: center;
+  font-weight: 700;
+  line-height: 1.3;
+  
+  /* Truncate text after 3 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* --- RIGHT PANEL (CHAT) --- */
+.right-panel {
+  flex: 4; /* Takes up ~40% space */
+  min-width: 300px; /* Don't let it get too small */
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-interface {
+  background: #001845;
+  border: 1px solid rgba(137, 194, 255, 0.2);
+  border-radius: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(137, 194, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #00ff88;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00ff88;
+}
+
+.chat-history {
+  flex: 1;
+  padding: 20px;
+  background: rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: rgba(255,255,255,0.4);
+}
+
+.ai-icon {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.chat-input-area {
+  padding: 15px;
+  background: #001845;
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid rgba(137, 194, 255, 0.1);
+}
+
+.chat-input {
+  flex: 1;
+  background: #002855;
+  border: none;
+  border-radius: 30px;
+  padding: 12px 20px;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.chat-input:focus {
+  outline: 2px solid #0077ff;
+}
+
+.chat-send-btn {
+  background: #0077ff;
+  border: none;
+  color: white;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: background 0.2s;
+}
+
+.chat-send-btn:hover {
+  background: #3399ff;
+}
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 900px) {
+  .split-layout {
+    flex-direction: column;
+  }
+  
+  .left-panel, .right-panel {
+    width: 100%;
+    flex: none;
+  }
+  
+  .right-panel {
+    height: 500px; 
+  }
+}
