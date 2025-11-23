@@ -3,6 +3,7 @@ import requests # to connect to the web
 from bs4 import BeautifulSoup # parse HTML
 from urllib.parse import urlparse, parse_qs # parse URL
 from scholarly import scholarly # google scholar
+from playwright.sync.api import sync_playwright # playwright API (in case no scholar link  is found)
 # documentation scholarly https://scholarly.readthedocs.io/en/stable/quickstart.html
 
 def is_valid_name(name):
