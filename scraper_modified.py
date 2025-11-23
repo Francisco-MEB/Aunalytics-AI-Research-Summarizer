@@ -3,7 +3,7 @@ import requests # to connect to the web
 from bs4 import BeautifulSoup # parse HTML
 from urllib.parse import urlparse, parse_qs # parse URL
 from scholarly import scholarly # google scholar
-from playwright.sync.api import sync_playwright # playwright API (in case no scholar link  is found)
+from playwright.sync_api import sync_playwright # playwright API (in case no scholar link  is found)
 # documentation scholarly https://scholarly.readthedocs.io/en/stable/quickstart.html
 
 def is_valid_name(name):
@@ -118,7 +118,10 @@ def getScholar(websiteUrl):
             return href #first link found 
     print("No Google Scholar link found on page")
     return None
+#display the descriptions
 
+def display_descriptions(descriptions):
+    return [desc for desc in descriptions]
 
 #  search Google Scholar for a professor by name and return their scholar ID.
 
@@ -189,24 +192,35 @@ if __name__ == "__main__":
 
     #POTENTIAL ISSUE IF NOT GOOGLE SCHOLAR LINK FOUND QWOULD BE COOL TO SEARCH NAME
     name = None
-    if foundUrl is None:
+    if foundUrl:
+        uId = extractAuthor(foundUrl)
+        if uId:
+                abstracts= abstractsGet(uId) 
+    # Fallback if no abstract found from scholar 
+    if not abstracts:
+        print("Scholars returned no results using generic")
         name = extract_professor_name(inputUrl)
-        if name is  None:
-            print("Cannot extract information") 
+        if not name:
+            print("Cannot extract professor name, exiting")
             exit()
-        
+        #trying to use playwright to search google
+        top_links= search_engine(name,engine="google")
+        print(display_descriptions(abstracts)) 
+    # displaying abstracts/ descriptions
+    print("Here are descriptions found:")
+    print(display_descriptions(abstracts)) 
     uId = None
     if (foundUrl):
         uId = extractAuthor(foundUrl)
     elif (name):
         uId = search_scholar_by_name(name)
 
-    if uId is None:
-        print("Could not obtain Scholar ID - exiting")
-        exit()
-
-    print("Fetching papers...")
-    abstracts = abstractsGet(uId)
-    if abstracts:
-        for elements in abstracts:
-            print(elements)
+  #  if uId is None:
+   #     print("Could not obtain Scholar ID - exiting")
+   #     exit()
+#
+  #  print("Fetching papers...")
+  #  abstracts = abstractsGet(uId)
+  #  if abstracts:
+  #      for elements in abstracts:
+  #          print(elements)
