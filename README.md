@@ -1,96 +1,184 @@
-# AI-Powered Professor Research Summarizer
+# RAPTOR QA System
 
-Web application dedicated to easily-digestible summaries of complex academic papers. This project uses RAG (Retrieval-Augmented Generation) pipelines to retrieve, analyze, and summarize research papers.
+A sophisticated question-answering system using RAPTOR (Recursive Abstractive Processing for Tree-Organized Retrieval) hierarchical document processing with PostgreSQL/pgvector storage.
 
-## 🏗️ Tech Stack
+## Features
 
-- **Languages:** Python
-- **AI/ML:** LangChain, Sentence Transformers, Google Gemini
-- **Database:** Supabase (PostgreSQL + pgvector)
-- **Vector Search:** pgvector with cosine similarity
+- **RAPTOR Hierarchical Processing**: Documents are chunked, embedded, clustered, and summarized into a tree structure for better retrieval
+- **Multiple Chunking Strategies**: Semantic, sliding window, recursive, and sentence-based chunking
+- **Advanced Clustering**: K-means, hierarchical, DBSCAN, Gaussian Mixture, spectral, and mini-batch K-means
+- **Embedding Caching**: LRU cache to avoid redundant API calls
+- **Query Caching**: Cache query results for faster repeated queries
+- **Streaming Answers**: Real-time streaming responses from the LLM
+- **Batch Processing**: Process multiple documents or queries in bulk
+- **Database Cleanup**: Comprehensive tools for soft delete, hard delete, and orphan cleanup
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-├── embeddings/          # Document processing and embedding generation
-│   └── ingest.py       # PDF/DOCX → embeddings pipeline
-├── qa_system.py        # Main RAG-based QA system
-├── requirements.txt    # Python dependencies
-├── .env.example        # Environment variables template
-├── docs/              # 📚 Documentation (setup guides, architecture)
-├── tests/             # 🧪 Test files and validation scripts
-└── scripts/           # 🛠️ Utility scripts (database setup, uploads)
+project/
+    main.py              # Main entry point
+    requirements.txt     # Python dependencies
+    .env                 # Environment variables (not committed)
+    
+    core/                # Core processing modules
+        __init__.py
+        raptor.py        # Incremental RAPTOR tree builder
+        chunking.py      # Document chunking strategies
+        clustering.py    # Embedding clustering methods
+        caching.py       # Embedding and query caching
+    
+    cli/                 # Command-line tools
+        qa.py            # Interactive Q&A mode
+        add.py           # Add documents
+        cleanup.py       # Database cleanup utility
+        streaming.py     # Streaming Q&A mode
+        batch.py         # Batch processing
+        auth.py          # User authentication
+    
+    docs/                # Documentation
+        architecture.md
+        chunking.md
+        usage.md
+    
+    sql/                 # Database schemas
+        schema.sql
 ```
 
-## 🚀 Quick Start
+## Installation
 
-### 1. Environment Setup
-
+1. Clone the repository:
 ```bash
-# Clone the repository
-git clone https://github.com/Francisco-MEB/Aunalytics-AI-Research-Summarizer.git
+git clone <repository-url>
 cd Aunalytics-AI-Research-Summarizer
+```
 
-# Create and activate virtual environment
+2. Create and activate a virtual environment:
+```bash
 python -m venv venv
-.\venv\Scripts\Activate.ps1  # Windows
-# source venv/bin/activate    # Linux/Mac
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-# Install dependencies
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configuration
-
-Create a `.env` file:
-```bash
-# Supabase Database (see docs/SUPABASE_SETUP.md for setup)
-DATABASE_URL=postgresql://postgres.xxx:password@aws-region.pooler.supabase.com:5432/postgres
-
-# Google Gemini API Key (get from https://aistudio.google.com/app/apikey)
-GEMINI_API_KEY=your_api_key_here
+4. Set up environment variables in `.env`:
+```
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+OPENAI_API_KEY=your_openai_key
 ```
 
-### 3. Usage
+## Usage
+
+### Main Entry Point
 
 ```bash
-# Process a document
-python embeddings/ingest.py --in your_paper.pdf --out data/embeddings.jsonl
-
-# Upload to database
-python scripts/upload_to_db.py --input data/embeddings.jsonl
-
-# Ask questions
-python qa_system.py
+python main.py --help
 ```
 
-## 📖 Documentation
-
-- **[Quick Start Guide](docs/QUICKSTART.md)** - Get started in 5 minutes
-- **[Supabase Setup](docs/SUPABASE_SETUP.md)** - Database configuration
-- **[System Architecture](docs/ARCHITECTURE.md)** - How everything works
-- **[Testing Guide](docs/TESTING.md)** - Validation and testing
-
-## 🧪 Testing
+### Add Documents
 
 ```bash
-# Test Supabase connection
-python tests/test_supabase_connection.py
+# Add a single file
+python main.py add path/to/document.txt
 
-# Test individual components
-python tests/test_qa_system.py
-
-# Test full pipeline
-python tests/test_pdf_workflow.py
+# Add with custom chunk size
+python main.py add document.txt --chunk-size 1000 --chunk-overlap 100
 ```
 
-## 🤝 Contributing
+### Interactive Q&A
 
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
+```bash
+python main.py qa
+```
 
-## 📝 License
+### Streaming Q&A
 
-[Add license information]
+```bash
+python main.py stream
+```
+
+### Batch Processing
+
+```bash
+# Process multiple documents
+python main.py batch documents/ --pattern "*.txt"
+
+# Process queries from file
+python main.py batch --queries queries.txt
+```
+
+### Database Cleanup
+
+```bash
+# View statistics
+python main.py cleanup --stats
+
+# Validate database integrity
+python main.py cleanup --validate
+
+# Soft delete cleanup (preview)
+python main.py cleanup --cleanup
+
+# Execute soft delete cleanup
+python main.py cleanup --cleanup --execute
+
+# Hard delete (purge) - permanent
+python main.py cleanup --purge --execute
+```
+
+## Architecture
+
+The system uses a hierarchical tree structure:
+
+1. **Chunks**: Documents are split into manageable chunks
+2. **Leaf Nodes**: Chunks are embedded and stored as leaf nodes
+3. **Tree Nodes**: Clusters of chunks are summarized and stored as parent nodes
+4. **Multi-level**: The process repeats, building a hierarchy
+
+### Database Tables
+
+- **chunks**: Stores document chunks with embeddings and metadata
+- **tree_nodes**: Stores the RAPTOR tree hierarchy
+- **chunk_to_leaf**: Maps chunks to their leaf node positions
+
+## Configuration
+
+Key settings in `.env`:
+
+| Variable | Description |
+|----------|-------------|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_KEY` | Supabase API key |
+| `OPENAI_API_KEY` | OpenAI API key for embeddings and LLM |
+| `CHUNK_SIZE` | Default chunk size (default: 500) |
+| `CHUNK_OVERLAP` | Chunk overlap (default: 50) |
+| `EMBEDDING_MODEL` | Embedding model (default: text-embedding-3-small) |
+| `LLM_MODEL` | LLM model (default: gpt-4o-mini) |
+
+## Development
+
+### Running Tests
+
+```bash
+python test.py
+```
+
+### Cleaning Up
+
+If document ingestion is interrupted, use the cleanup utility:
+
+```bash
+# Check for orphans
+python main.py cleanup --validate
+
+# Clean up orphaned data
+python main.py cleanup --cleanup --execute
+```
+
+## License
+
+MIT License

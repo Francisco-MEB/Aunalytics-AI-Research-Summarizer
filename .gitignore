@@ -1,6 +1,10 @@
 # Environment variables (contains API keys)
 .env
 
+# Session files (user-specific)
+.session
+.auth_users.json
+
 # Python
 __pycache__/
 *.pyc
@@ -25,3 +29,17 @@ Thumbs.db
 
 # Model cache
 models/
+
+# Cache directories
+.cache/
+.dist/
+
+# Large data files (keep sample data only)
+data/*.jsonl
+data/*.pdf
+data/*.docx
+!data/sample.txt
+!data/test_small.txt
+
+# Embeddings outputs
+embeddings/outputs/

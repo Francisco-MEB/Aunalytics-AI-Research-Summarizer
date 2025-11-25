@@ -1,0 +1,18 @@
+# Requirements for QA System with Gemini Integration
+
+# Core dependencies
+sentence-transformers==2.2.2
+langchain-core==0.3.79
+psycopg2-binary==2.9.9  # PostgreSQL adapter (binary version for easy install)
+
+# Document processing
+pypdf>=6.0.0  # PDF reading
+docx2txt>=0.8  # DOCX reading
+langchain-text-splitters==0.3.11  # Text chunking
+
+# Google Gemini API
+google-generativeai==0.3.2
+
+# Utility packages
+python-dotenv==1.0.0  # For loading environment variables from .env file
+typing-extensions==4.8.0  # Extended typing support
