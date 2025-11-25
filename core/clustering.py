@@ -22,7 +22,7 @@ class ClusteringMethod(Enum):
 @dataclass
 class ClusteringConfig:
     """Configuration for clustering behavior"""
-    method: ClusteringMethod = ClusteringMethod.ADAPTIVE
+    method: ClusteringMethod = ClusteringMethod.KMEANS  # KMeans is fast and predictable
     target_cluster_size: int = 10        # Target chunks per cluster
     min_cluster_size: int = 3            # Minimum cluster size
     max_cluster_size: int = 20           # Maximum cluster size
