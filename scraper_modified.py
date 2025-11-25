@@ -3,17 +3,16 @@ import requests # to connect to the web
 from bs4 import BeautifulSoup # parse HTML
 from urllib.parse import urlparse, parse_qs # parse URL
 from scholarly import scholarly, ProxyGenerator # google scholar
-# from playwright.sync_api import sync_playwright # playwright API (in case no scholar link  is found)
-# from playwright_stealth import stealth_sync
+from playwright.sync_api import sync_playwright # playwright API (in case no scholar link  is found)
 # documentation scholarly https://scholarly.readthedocs.io/en/stable/quickstart.html
 
-pg = ProxyGenerator()
-print("searching for proxies (10-20 sec)")
-success = pg.FreeProxies()
-if success:
-    scholarly.use_proxy(pg)
-else:
-    print("could not find any proxies")
+# pg = ProxyGenerator()
+# print("searching for proxies (10-20 sec)")
+# success = pg.FreeProxies()
+# if success:
+#     scholarly.use_proxy(pg)
+# else:
+#     print("could not find any proxies")
 
 def is_valid_name(name):
     """Check if extracted text looks like a real name"""
@@ -135,48 +134,55 @@ def display_descriptions(descriptions):
 #  search Google Scholar for a professor by name and return their scholar ID.
 
 # FALLBACK in case no schoalr link is found
-# def playwrightSearch(name):
-#     print(f"Fallback: Searching for '{name}'")
-#     found_link = None
+def playwrightSearch(name):
+    found_link = None 
 
-#     with sync_playwright() as p:
-#         browser = p.chromium.launch(headless=False)
-#         page = browser.new_page()
+    with sync_playwright() as p:
 
-#         page.goto("https://www.bing.com")
-
-#         page.click('[name="q"]')
-#         page.wait_for_timeout(1000)
-#         page.keyboard.type("")
-#         page.wait_for_timeout(898)
-#         page.keyboard.type(f"{name} google scholar", delay=190)
-#         page.wait_for_timeout(1090)
-#         page.keyboard.press("Enter")
-#         #page.wait_for_load_state()
-#         page.wait_for_timeout(3000)
-
-
-#         page.wait_for_selector(".b_algo", timeout=5000)
-
-#         # scholarLocate = page.locator('a[href*="scholar.google.com/citations"]')
-#         #if scholarLocate.count() > 0:
-#         #    found_link = scholarLocate.first.get_attribute("href")
-#         #    print(f"Found: {found_link}")
-#         results = page.locator(".b_algo")
-
-#         for i in range(results.count()):
-#             item= results.nth(i)
-#             text = item.inner_text().lower()
-
-#             if "scholar" in text or "citations" in text:
-#                 linkButton = item.locator("h2 a").first
-#                 linkButton.click()
-#                 page.wait_for_load_state()
-#                 found_link = page.url
-#             break
+        browser = p.chromium.launch(headless=False) 
         
-#         browser.close()
-#     return found_link
+        context = browser.new_context()
+        page = context.new_page()
+
+        page.goto("https://www.bing.com")
+        
+        page.click('[name="q"]')
+        page.wait_for_timeout(1000)
+        page.keyboard.type("")
+        page.wait_for_timeout(898)
+        page.keyboard.type(f"{name} google scholar", delay=190)
+        page.wait_for_timeout(1090)
+        page.keyboard.press("Enter")
+
+        page.wait_for_selector(".b_algo", timeout=5000) 
+        
+        results = page.locator(".b_algo")
+        count = results.count()
+        page.wait_for_timeout(1090)
+
+        for i in range(count):
+            item = results.nth(i)
+            text = item.inner_text().lower() 
+
+            if "scholar" in text or "citations" in text:
+                link_tag = item.locator("h2 a").first
+                page.wait_for_timeout(3090)
+                # We open the tab (gets rid of bing wrapper, gives us ACTUAL scholar link)
+                with context.expect_page() as new_page_info:
+                    link_tag.click()
+                    page.wait_for_timeout(4090)
+                
+                new_tab = new_page_info.value
+                new_tab.wait_for_load_state()
+                
+                found_link = new_tab.url
+                print(f"Google Scholar URL --> {found_link}")
+                
+                new_tab.close()
+                break 
+        browser.close()
+
+    return found_link
 
 # from the url scholar 
 def extractAuthor(scholarUrl):
@@ -196,7 +202,7 @@ def extractAuthor(scholarUrl):
     # parsedUrl.query     'user=j7wN3bYAAAAJ&hl=en'
     #parse_qs converts to dict 
     # {'user': ['j7wN3bYAAAAJ'], 'hl': ['en']}, get the first element from user 
-    print(f"Author ID: {authorId}")
+    # print(f"Author ID: {authorId}")
     return authorId # 'j7wN3bYAAAAJ'
 
 
@@ -238,56 +244,41 @@ if __name__ == "__main__":
 # input from sites also does not work  
 
     #inputUrl = "https://www2.eecs.berkeley.edu/Faculty/Homepages/abbeel.html"
-    inputUrl ="https://sites.nd.edu/taeho-jung"
-    print("Searching Website:")
-    #abstracts = None
-    foundUrl = getScholar(inputUrl)
-
-    #POTENTIAL ISSUE IF NOT GOOGLE SCHOLAR LINK FOUND QWOULD BE COOL TO SEARCH NAME
-    #name = None
+    inputUrl = "https://sites.nd.edu/taeho-jung"
+    print(f"Processing: {inputUrl}")
     
-    # Fallback if no abstract found from scholar 
+    uId = None
+    foundUrl = getScholar(inputUrl)
     if not foundUrl:
-        print("Scholars returned no results using generic")
+        print("No direct Scholar link on website. Extracting name.")
         name = extract_professor_name(inputUrl)
+        
         if name:
             uId = search_scholar_by_name(name)
-            if uId:
-                abstracts = abstractsGet(uId)
-                print("Here are descriptions found:")
-                print(display_descriptions(abstracts))
-            else:
-                print("No scholar ID found")
-        #    foundUrl = playwrightSearch(name)
-        #else:
-        #    print("Cannot extract professor name, exiting")
-        #    exit()
-        #trying to use playwright to search google
-        #top_links= search_engine(name,engine="google")
-
-    if foundUrl:
-        uId = extractAuthor(foundUrl)
-        if uId:
-            abstracts= abstractsGet(uId) 
-            #print(display_descriptions(abstracts)) 
-    # displaying abstracts/ descriptions
-            print("Here are descriptions found:")
-            print(display_descriptions(abstracts)) 
+            
+            if not uId:
+                print("Attempting Playwright.. (Scholarly Fail)")
+                foundUrl = playwrightSearch(name)
+                
+                # If Playwright found a URL, extract the ID from it
+                if foundUrl:
+                    uId = extractAuthor(foundUrl)
         else:
-            print("error1")
+            print("Could not extract a valid name from the website.")
+
+    elif foundUrl and not uId:
+        uId = extractAuthor(foundUrl)
+
+    if uId:
+        print(f"Author ID: {uId}")
+        name = extract_professor_name(foundUrl)
+        print(f"Author's Name: {name}")
+        print("Fetching top 10 papers:")
+        try:
+            abstracts = abstractsGet(uId)
+            print("Here are descriptions found:")
+            print(display_descriptions(abstracts))
+        except Exception as e:
+            print(f"Error fetching abstracts: {e}")
     else:
-        print("eRROR2") 
-    #if (foundUrl):
-    #    uId = extractAuthor(foundUrl)
-    #elif (name):
-    #    uId = search_scholar_by_name(name)
-
-  #  if uId is None:
-   #     print("Could not obtain Scholar ID - exiting")
-   #     exit()
-
-  #  print("Fetching papers...")
-  #  abstracts = abstractsGet(uId)
-  #  if abstracts:
-  #      for elements in abstracts:
-  #          print(elements)
+        print("Failed: Could not find Google Scholar ID.")
