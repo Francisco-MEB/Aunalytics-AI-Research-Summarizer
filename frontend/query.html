@@ -8,74 +8,137 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
-  <title>Submit Query - Aunalytics RAG</title>
-
+  <title>Professor Research Analysis</title>
 </head>
 <body>
 
-  <!-- NAVBAR SECTION -->
   <nav class="navbar">
     <div class="logo">
       <img src="images/LOGO.png" alt="My Logo" class="logo-img">
     </div>
-
     <ul class="nav-links">
       <li><a href="index.html">Home</a></li>
       <li><a href="#">About</a></li>
       <li><a href="#">Support</a></li>
     </ul>
-
     <div class="nav-buttons">
       <button class="btn-outline">Sign In</button>
       <button class="btn-primary">Sign Up</button>
     </div>
   </nav>
 
-  <!-- QUERY PAGE CONTENT -->
-  <div class="query-container">
+  <div class="dashboard-container">
     <a href="index.html" class="back-link">Back to Home</a>
-    
-    <div class="page-header">
-      <h1>Submit Your Query</h1>
-      <p>Upload your PDF and ask questions to get insights from your professor's research</p>
+
+    <div class="url-section">
+      <label class="section-label">Website URL</label>
+      <div class="url-input-wrapper">
+        <input type="text" class="form-control" placeholder="Paste the website URL of your chosen professor..." />
+        <button class="btn-primary scrape-btn">Analyze Website</button>
+      </div>
     </div>
 
-    <div class="query-card">
-      <form action="/api/upload" method="POST" enctype="multipart/form-data">
+    <div class="split-layout">
+      
+      <div class="left-panel">
         
-        <!-- User Query -->
-        <div class="form-group">
-          <label for="query" class="form-label">Your Question:</label>
-          <textarea 
-            class="form-control" 
-            id="query" 
-            name="query" 
-            rows="5" 
-            placeholder="Type your question here..." 
-            required
-          ></textarea>
+        <div class="summary-box">
+          <span class="placeholder-text">SUMMARY OUTPUT<br><small>(Content will appear here after analysis)</small></span>
         </div>
 
-        <!-- PDF Upload -->
-        <div class="form-group">
-          <label for="file" class="form-label">Upload PDF:</label>
-          <input 
-            class="form-control" 
-            type="file" 
-            id="file" 
-            name="file" 
-            accept="application/pdf" 
-            required
-          >
+        <div class="papers-section">
+          <label class="section-label">Identified Research Papers (10 Found)</label>
+          
+          <div class="papers-scroller">
+            
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Deep Learning Optimization.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Cognitive Architectures.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Human-AI Interaction.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Natural Language Processing.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Reinforcement Learning.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Computer Vision Trends.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Data Privacy Frameworks.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Quantum Computing 101.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Ethical AI Guidelines.pdf</div>
+            </div>
+        
+            <div class="paper-card">
+              <div class="paper-icon">📄</div>
+              <div class="paper-title">Large Language Models.pdf</div>
+            </div>
+        
+          </div>
         </div>
 
-        <!-- Submit Button -->
-        <div class="button-wrapper">
-          <button class="submit-btn" type="submit">Submit Query</button>
+      </div>
+
+      <div class="right-panel">
+        <div class="chat-interface">
+          <div class="chat-header">
+            <h3>Research Assistant</h3>
+            <span class="status-dot"></span>
+          </div>
+          
+          <div class="chat-history">
+            <div class="empty-state">
+              <div class="ai-icon">✨</div>
+              <p>Once the papers are analyzed, ask me anything about the professor's research.</p>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+  
+            <input type="file" id="chat-file-upload" accept=".pdf,.docx,.txt" style="display: none;" />
+         
+            <button class="chat-attach-btn" onclick="document.getElementById('chat-file-upload').click();">
+              📎
+            </button>
+          
+            <input type="text" class="chat-input" placeholder="Enter your question here..." >
+            
+            <button class="chat-send-btn" >➤</button>
+          </div>
+          
+          <div id="file-preview-area" style="display: none; padding: 0 20px 10px 20px; color: #89c2ff; font-size: 0.8rem;"></div>
         </div>
-      </form>
+      </div>
+
     </div>
   </div>
-
+  <script src="script.js"></script>
 </body>
 </html>
