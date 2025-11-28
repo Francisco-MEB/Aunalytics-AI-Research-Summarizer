@@ -1,0 +1,697 @@
+/* ---------- GLOBAL STYLES ---------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+h1, h2, h3 {
+  font-family: 'Momo Trust Display', sans-serif;
+  font-weight: 1000;
+}
+
+p {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  color: #cbd5e1;
+}
+
+button {
+  font-family: 'Montserrat', sans-serif;  
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background-color: #001233;
+  color: white;
+  line-height: 1.6;
+}
+
+
+/* ---------- NAVBAR ---------- */
+.navbar {
+  width: 100%;
+  padding: 20px 80px; /* This + height creates approx 85-90px total height */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.logo h2 {
+  font-size: 1.6em;
+  font-weight: 600;
+  color: #89c2ff;
+}
+
+.logo-img {
+  height: 40px;
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 35px;
+}
+
+.nav-links a {
+  color: #001233;  
+  text-decoration: none;
+  font-weight: 400;
+  transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+  color: #0077ff;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-primary,
+.btn-outline {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #0077ff;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #3399ff;
+}
+
+.btn-outline {
+  border: 1px solid #001233;
+  background: transparent;
+  color: #001233;
+}
+
+.btn-outline:hover {
+  background-color: #001233;
+  color: #ffffff;
+}
+
+
+/* ---------- HERO SECTION ---------- */
+.hero {
+  text-align: center;
+  padding: 120px 20px; /* Default padding for scrolling pages (overridden below for home) */
+  min-height: 100vh; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+
+/* ---------- FLOATING GLOW CLOUDS ---------- */
+.hero::before {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(138, 43, 226, 0.8), rgba(75, 0, 130, 0.4));
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.6;
+  top: 10%;
+  left: 10%;
+  z-index: -1;
+  pointer-events: none;
+  animation: float1 20s ease-in-out infinite;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0, 119, 255, 0.7), rgba(30, 144, 255, 0.3));
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.6;
+  bottom: 5%;
+  right: 10%;
+  z-index: -1;
+  pointer-events: none;
+  animation: float2 25s ease-in-out infinite;
+}
+
+
+.hero-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.hero h1 {
+  font-size: 3em;
+  font-weight: 700;
+  margin-bottom: 25px;
+  line-height: 1.2;
+}
+
+.hero p {
+  color: #cbd5e1;
+  font-size: 1.1em;
+  margin-bottom: 40px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+@keyframes float1 {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes float2 {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(20px); }
+  100% { transform: translateY(0px); }
+}
+
+
+/* ---------- RESPONSIVE DESIGN ---------- */
+@media (max-width: 900px) {
+  .navbar {
+    flex-direction: column;
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .hero h1 {
+    font-size: 2.2em;
+  }
+
+  .hero p {
+    font-size: 1em;
+  }
+}
+
+
+/* ---------- QUERY PAGE STYLES ---------- */
+.query-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 60px 20px;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.page-header h1 {
+  font-size: 2.5em;
+  color: #89c2ff;
+  margin-bottom: 15px;
+}
+
+.page-header p {
+  font-size: 1.1em;
+  color: #cbd5e1;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.query-card {
+  background-color: #001845;
+  border: 1px solid rgba(137, 194, 255, 0.2);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 0 20px rgba(0, 50, 150, 0.2);
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-label {
+  display: block;
+  color: #89c2ff;
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: 1em;
+}
+
+.form-control {
+  width: 100%;
+  background-color: #002855;
+  border: 1px solid rgba(137, 194, 255, 0.3);
+  color: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.95em;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #0077ff;
+  background-color: #003366;
+  box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.1);
+}
+
+.form-control::placeholder {
+  color: #7894b0;
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.form-control[type="file"] {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.form-control[type="file"]::file-selector-button {
+  background-color: #0077ff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  margin-right: 12px;
+  transition: background-color 0.3s ease;
+}
+
+.form-control[type="file"]::file-selector-button:hover {
+  background-color: #3399ff;
+}
+
+.button-wrapper {
+  text-align: center;
+  margin-top: 30px;
+}
+.submit-btn {
+  background-color: #0077ff;
+  color: white;
+  border: none;
+  padding: 14px 40px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+}
+
+.submit-btn:hover {
+  background-color: #3399ff;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 119, 255, 0.3);
+}
+
+.back-link {
+  display: inline-block;
+  color: #89c2ff;
+  text-decoration: none;
+  margin-bottom: 30px;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.back-link:hover {
+  color: #0077ff;
+}
+
+.back-link::before {
+  content: "← ";
+  margin-right: 5px;
+}
+
+@media (max-width: 768px) {
+  .query-card {
+    padding: 30px 20px;
+  }
+  .page-header h1 {
+    font-size: 2em;
+  }
+  .submit-btn {
+    width: 100%;
+  }
+}
+
+@media (min-width: 901px) {
+  
+  /* Lock the Body so no scrollbar appears */
+  body.home-page {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* Adjust the Hero to fill exactly the remaining space */
+  body.home-page .hero {
+    /* 100vh (Screen) - 90px (Navbar height approx) 
+      This ensures Navbar + Hero = 100% 
+    */
+    height: calc(100vh - 90px);
+    min-height: auto; 
+    padding: 0 20px; /* Remove the large vertical padding to let flexbox center it */
+  }
+}
+
+/* Wrapper for the whole dashboard */
+/* ==================================================== */
+/* ---------- DASHBOARD LAYOUT (FIXED) ---------- */
+/* ==================================================== */
+
+/* Wrapper for the whole dashboard */
+.dashboard-container {
+  width: 96%; /* CHANGED: Use % so it fits any screen size */
+  max-width: 1400px; 
+  margin: 0 auto;
+  padding: 30px 20px;
+  min-height: calc(100vh - 90px);
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.section-label {
+  display: block;
+  color: #89c2ff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* --- 1. URL SECTION --- */
+.url-section {
+  background: #001845;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(137, 194, 255, 0.2);
+}
+
+.url-input-wrapper {
+  display: flex;
+  gap: 15px;
+}
+
+.scrape-btn {
+  white-space: nowrap;
+}
+
+/* --- 2. SPLIT LAYOUT (LEFT & RIGHT) --- */
+.split-layout {
+  display: flex;
+  gap: 25px;
+  flex: 1; 
+  min-height: 0; /* Important for nested scrolling */
+}
+
+/* --- LEFT PANEL --- */
+.left-panel {
+  flex: 6; /* Takes up ~60% space */
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  
+  /* CRITICAL FIX: This stops the scrollbar from pushing the page wide */
+  min-width: 0; 
+}
+
+.summary-box {
+  flex: 1; 
+  background: #001845;
+  border: 1px solid rgba(137, 194, 255, 0.2);
+  border-radius: 16px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 250px;
+}
+
+.placeholder-text {
+  color: rgba(255,255,255,0.3);
+  font-style: italic;
+  text-align: center;
+}
+
+/* --- HORIZONTAL SCROLLABLE PAPERS --- */
+.papers-section {
+  /* Container logic handled by flex parent */
+}
+
+.papers-scroller {
+  display: flex;
+  gap: 15px;
+  overflow-x: auto; /* Enables horizontal scroll */
+  padding-bottom: 10px;
+  
+  /* Optional: Make scrolling smooth */
+  scroll-behavior: smooth; 
+}
+
+/* Custom Scrollbar */
+.papers-scroller::-webkit-scrollbar {
+  height: 8px;
+}
+.papers-scroller::-webkit-scrollbar-track {
+  background: #001233;
+  border-radius: 4px;
+}
+.papers-scroller::-webkit-scrollbar-thumb {
+  background: #0077ff; 
+  border-radius: 4px;
+}
+
+.paper-card {
+  min-width: 140px; /* Fixed width for each card */
+  height: 160px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.paper-card:hover {
+  transform: translateY(-5px);
+  background: #eef6ff;
+}
+
+.paper-icon {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.paper-title {
+  color: #001233;
+  font-size: 0.7rem;
+  text-align: center;
+  font-weight: 700;
+  line-height: 1.3;
+  
+  /* Truncate text after 3 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* --- RIGHT PANEL (CHAT) --- */
+.right-panel {
+  flex: 4; /* Takes up ~40% space */
+  min-width: 300px; /* Don't let it get too small */
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-interface {
+  background: #001845;
+  border: 1px solid rgba(137, 194, 255, 0.2);
+  border-radius: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(137, 194, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #00ff88;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00ff88;
+}
+
+.chat-history {
+  flex: 1;
+  padding: 20px;
+  background: rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: rgba(255,255,255,0.4);
+}
+
+.ai-icon {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.chat-input-area {
+  padding: 15px;
+  background: #001845;
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid rgba(137, 194, 255, 0.1);
+}
+
+.chat-input {
+  flex: 1;
+  background: #002855;
+  border: none;
+  border-radius: 30px;
+  padding: 12px 20px;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.chat-input:focus {
+  outline: 2px solid #0077ff;
+}
+
+.chat-send-btn {
+  background: #0077ff;
+  border: none;
+  color: white;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: background 0.2s;
+}
+
+.chat-send-btn:hover {
+  background: #3399ff;
+}
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 900px) {
+  .split-layout {
+    flex-direction: column;
+  }
+  
+  .left-panel, .right-panel {
+    width: 100%;
+    flex: none;
+  }
+  
+  .right-panel {
+    height: 500px; 
+  }
+}
+
+/* --- CHAT ATTACHMENT STYLES --- */
+
+.chat-input-area {
+  /* Ensure flex is still working to align items side-by-side */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-attach-btn {
+  background: transparent;
+  border: 1px solid rgba(137, 194, 255, 0.3);
+  color: #89c2ff;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0; /* Prevents button from getting squished */
+}
+
+.chat-attach-btn:hover {
+  background: rgba(137, 194, 255, 0.1);
+  border-color: #89c2ff;
+}
+
+.chat-attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(137, 194, 255, 0.1);
+}
+
+/* Add a visual indicator when a file is selected */
+.file-selected-badge {
+  background: #002855;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #0077ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.remove-file-btn {
+  cursor: pointer;
+  color: #ff4444;
+  font-weight: bold;
+}
