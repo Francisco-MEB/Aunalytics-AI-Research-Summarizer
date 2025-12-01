@@ -23,18 +23,14 @@ from scraper import ProfessorScraper
 # Import ingestion utilities - add embeddings to path first
 sys.path.insert(0, str(Path(__file__).parent / "embeddings"))
 try:
-    # Import from the store_to_supabase module (no .py extension)
-    spec = importlib.util.spec_from_file_location(
-        "store_module",
-        Path(__file__).parent / "embeddings" / "store_to_supabase"
-    )
-    store_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(store_module)
+    # Import directly from the store_to_supabase module
+    import store_to_supabase as store_module
     
     read_document = store_module.read_document
     chunk_text = store_module.chunk_text
     embed_chunks = store_module.embed_chunks
     store_chunks_to_db = store_module.store_to_supabase
+    print("[SYSTEM] Successfully imported ingestion functions")
 except Exception as e:
     print(f"Warning: Could not import store_to_supabase module: {e}")
     read_document = None
@@ -82,6 +78,15 @@ class UploadResponse(BaseModel):
     chunks_created: int
     user_id: str
 
+class DocumentInfo(BaseModel):
+    source: str
+    chunk_count: int
+    first_uploaded: str
+
+class DocumentListResponse(BaseModel):
+    documents: List[DocumentInfo]
+    total_chunks: int
+
 class ScrapeRequest(BaseModel):
     professor_url: str
     user_id: str
@@ -124,7 +129,9 @@ async def health_check():
     """Detailed health check with database connectivity"""
     try:
         # Test database connection
+        sys.path.insert(0, str(Path(__file__).parent / "embeddings" / "database connection"))
         from db_connection import get_db_connection
+        
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
@@ -239,13 +246,21 @@ async def scrape_professor_website(request: ScrapeRequest):
             max_papers=request.max_papers
         )
         
+        # Check for errors
         if scrape_result["error"]:
-            raise HTTPException(status_code=500, detail=scrape_result["error"])
+            # If no papers found but there's an error, return it as a warning
+            if not scrape_result["papers"]:
+                raise HTTPException(
+                    status_code=422,  # Unprocessable Entity (not a server error)
+                    detail=scrape_result["error"]
+                )
+            # If some papers found despite error, continue with warning in response
+            print(f"[API WARNING] Scrape completed with error: {scrape_result['error']}")
         
         if not scrape_result["papers"]:
             raise HTTPException(
                 status_code=404,
-                detail="No papers found. Could not locate Google Scholar, Academia.edu, or ResearchGate profile."
+                detail="No papers found. Could not locate or access Google Scholar, Academia.edu, or ResearchGate profile. These sites may be blocking automated access."
             )
         
         # Process and embed the abstracts
@@ -365,6 +380,7 @@ async def delete_user_documents(user_id: str):
     Useful for testing or user data cleanup
     """
     try:
+        sys.path.insert(0, str(Path(__file__).parent / "embeddings" / "database connection"))
         from db_connection import get_db_connection
         
         with get_db_connection() as conn:
@@ -394,6 +410,7 @@ async def get_document_count(user_id: str):
     Get the number of document chunks stored for a user
     """
     try:
+        sys.path.insert(0, str(Path(__file__).parent / "embeddings" / "database connection"))
         from db_connection import get_db_connection
         
         with get_db_connection() as conn:
@@ -413,6 +430,102 @@ async def get_document_count(user_id: str):
         raise HTTPException(
             status_code=500,
             detail=f"Error counting documents: {str(e)}"
+        )
+
+
+@app.get("/api/documents/{user_id}/list", response_model=DocumentListResponse)
+async def list_documents(user_id: str):
+    """
+    List all documents (grouped by source) for a user
+    Shows document names and chunk counts
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).parent / "embeddings" / "database connection"))
+        from db_connection import get_db_connection
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # Get unique sources with their chunk counts and first upload time
+                cur.execute("""
+                    SELECT 
+                        metadata->>'source' as source,
+                        COUNT(*) as chunk_count,
+                        MIN(doc_id) as first_uploaded
+                    FROM documents 
+                    WHERE user_id = %s 
+                    GROUP BY metadata->>'source'
+                    ORDER BY MIN(doc_id) DESC
+                """, (user_id,))
+                
+                results = cur.fetchall()
+                
+                # Get total chunks
+                cur.execute(
+                    "SELECT COUNT(*) FROM documents WHERE user_id = %s",
+                    (user_id,)
+                )
+                total_chunks = cur.fetchone()[0]
+        
+        documents = [
+            DocumentInfo(
+                source=row[0] or "Unknown",
+                chunk_count=row[1],
+                first_uploaded=row[2]
+            )
+            for row in results
+        ]
+        
+        return DocumentListResponse(
+            documents=documents,
+            total_chunks=total_chunks
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing documents: {str(e)}"
+        )
+
+
+@app.delete("/api/documents/{user_id}/source/{source_name}")
+async def delete_document_by_source(user_id: str, source_name: str):
+    """
+    Delete all chunks for a specific document (by source name)
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).parent / "embeddings" / "database connection"))
+        from db_connection import get_db_connection
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # Delete all chunks where source matches
+                cur.execute("""
+                    DELETE FROM documents 
+                    WHERE user_id = %s 
+                    AND metadata->>'source' = %s
+                    RETURNING doc_id
+                """, (user_id, source_name))
+                
+                deleted = cur.fetchall()
+                conn.commit()
+        
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No document found with source '{source_name}'"
+            )
+        
+        return {
+            "message": f"Deleted document '{source_name}'",
+            "chunks_deleted": len(deleted)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting document: {str(e)}"
         )
 
 
@@ -438,5 +551,6 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Use API_PORT to avoid conflict with database port variable
+    api_port = int(os.getenv("API_PORT", os.getenv("PORT", 8080)))
+    uvicorn.run(app, host="0.0.0.0", port=api_port)

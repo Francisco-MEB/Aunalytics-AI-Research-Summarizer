@@ -63,21 +63,33 @@ class ProfessorScraper:
                 result["source"] = "Google Scholar"
                 result["papers"] = self._scrape_google_scholar(scholar_url, max_papers)
             
-            # Fallback 1: Try Academia.edu
+            # Fallback 1: Try Academia.edu (skip if blocked)
             if not result["papers"]:
                 print("[SCRAPER] No Google Scholar, trying Academia.edu...")
                 academia_url = self._find_academia_link(soup, url)
                 if academia_url:
-                    result["source"] = "Academia.edu"
-                    result["papers"] = self._scrape_academia(academia_url, max_papers)
+                    try:
+                        result["source"] = "Academia.edu"
+                        result["papers"] = self._scrape_academia(academia_url, max_papers)
+                    except requests.HTTPError as e:
+                        if e.response.status_code == 403:
+                            print("[SCRAPER WARNING] Academia.edu blocked request (403), trying next fallback...")
+                        else:
+                            raise
             
-            # Fallback 2: Try ResearchGate
+            # Fallback 2: Try ResearchGate (skip if blocked)
             if not result["papers"]:
                 print("[SCRAPER] No Academia.edu, trying ResearchGate...")
                 rg_url = self._find_researchgate_link(soup, url)
                 if rg_url:
-                    result["source"] = "ResearchGate"
-                    result["papers"] = self._scrape_researchgate(rg_url, max_papers)
+                    try:
+                        result["source"] = "ResearchGate"
+                        result["papers"] = self._scrape_researchgate(rg_url, max_papers)
+                    except requests.HTTPError as e:
+                        if e.response.status_code == 403:
+                            print("[SCRAPER WARNING] ResearchGate blocked request (403), trying next fallback...")
+                        else:
+                            raise
             
             # Fallback 3: Try scraping papers directly from professor's site
             if not result["papers"]:
@@ -85,7 +97,11 @@ class ProfessorScraper:
                 result["source"] = "Professor Website"
                 result["papers"] = self._scrape_local_papers(soup, url, max_papers)
             
-            print(f"[SCRAPER] Complete. Found {len(result['papers'])} papers from {result['source']}")
+            if result["papers"]:
+                print(f"[SCRAPER] Complete. Found {len(result['papers'])} papers from {result['source']}")
+            else:
+                result["error"] = "No papers found. External research profile sites (ResearchGate, ASEE) are blocking automated access. Please provide direct links to papers or Google Scholar profile."
+                print(f"[SCRAPER WARNING] {result['error']}")
             
         except requests.RequestException as e:
             result["error"] = f"Failed to fetch URL: {str(e)}"
@@ -180,7 +196,14 @@ class ProfessorScraper:
                 try:
                     # Extract title
                     title_elem = paper_elem.find('a', class_='gsc_a_at')
-                    title = title_elem.get_text() if title_elem else f"Paper {idx+1}"
+                    title = title_elem.get_text().strip() if title_elem else f"Paper {idx+1}"
+                    
+                    # Filter out UI elements
+                    title_lower = title.lower()
+                    ui_terms = ['new articles', 'new citations', 'nouveaux articles', 'nouvelles citations', 
+                                'follow', 'alert', 'export', 'profile', 'library']
+                    if any(term in title_lower for term in ui_terms) or len(title) < 10:
+                        continue
                     
                     # Get paper URL
                     paper_url = urljoin(scholar_url, title_elem['href']) if title_elem and title_elem.get('href') else None
@@ -214,6 +237,11 @@ class ProfessorScraper:
                     print(f"[SCRAPER WARNING] Failed to parse paper {idx+1}: {e}")
                     continue
         
+        except requests.HTTPError as e:
+            if e.response.status_code == 403:
+                print(f"[SCRAPER WARNING] Google Scholar blocked request (403). This is common with Scholar scraping.")
+            else:
+                print(f"[SCRAPER ERROR] Google Scholar HTTP error: {e}")
         except Exception as e:
             print(f"[SCRAPER ERROR] Google Scholar scraping failed: {e}")
         
@@ -249,6 +277,19 @@ class ProfessorScraper:
         # Look for common publication section keywords
         pub_keywords = ['publication', 'paper', 'research', 'article', 'journal']
         
+        # Common navigation/footer elements to filter out (English & French)
+        skip_keywords = [
+            'skip to', 'navigation', 'menu', 'footer', 'header', 'privacy', 'cookie',
+            'terms', 'contact', 'about us', 'home', 'login', 'register', 'search',
+            'editorial', 'ethics statement', 'submit', 'subscribe', 'follow us',
+            'copyright', 'accessibility', 'sitemap', 'rss', 'social media',
+            # Google Scholar UI elements
+            'new articles', 'new citations', 'nouveaux articles', 'nouvelles citations',
+            'articles by this author', 'citations of', 'cet auteur', 'ces articles',
+            'follow', 'create alert', 'export', 'my profile', 'my library',
+            'settings', 'sign in', 'sign out', 'help', 'updates', 'alerts'
+        ]
+        
         # Search for sections that might contain papers
         for section in soup.find_all(['section', 'div', 'article']):
             section_text = section.get_text().lower()
@@ -259,16 +300,27 @@ class ProfessorScraper:
                 links = section.find_all('a', href=True)
                 
                 for link in links[:max_papers]:
-                    title = link.get_text().strip()
-                    if len(title) > 10:  # Probably a paper title if it's long enough
-                        papers.append({
-                            "title": title,
-                            "authors": "Unknown",
-                            "year": "N/A",
-                            "abstract": "Abstract not available from local scraping",
-                            "url": urljoin(base_url, link['href']),
-                            "source": "Professor Website"
-                        })
+                    try:
+                        title = link.get_text().strip()
+                        title_lower = title.lower()
+                        
+                        # Filter out navigation and UI elements
+                        if any(skip in title_lower for skip in skip_keywords):
+                            continue
+                        
+                        # Must be reasonably long and not just navigation text
+                        if len(title) > 20 and len(title) < 300:
+                            papers.append({
+                                "title": title,
+                                "authors": "Unknown",
+                                "year": "N/A",
+                                "abstract": "Abstract not available from local scraping",
+                                "url": urljoin(base_url, link['href']),
+                                "source": "Professor Website"
+                            })
+                    except Exception as e:
+                        print(f"[SCRAPER WARNING] Skipping paper link: {e}")
+                        continue
                 
                 if papers:
                     break  # Found papers, stop looking

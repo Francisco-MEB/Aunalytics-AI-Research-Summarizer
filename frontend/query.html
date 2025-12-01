@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Momo+Trust+Display&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Professor Research Analysis</title>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="logo">
+      <img src="images/LOGO.png" alt="My Logo" class="logo-img">
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="#">Support</a></li>
+    </ul>
+    <div class="nav-buttons">
+      <button class="btn-outline">Sign In</button>
+      <button class="btn-primary">Sign Up</button>
+    </div>
+  </nav>
+
+  <div class="dashboard-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <a href="index.html" class="back-link">Back to Home</a>
+      <button class="btn-danger" id="clear-data-btn" style="background: #dc3545; border: none; padding: 8px 16px; border-radius: 6px; color: white; cursor: pointer; font-size: 0.9rem;">Clear All Documents</button>
+    </div>
+
+    <div class="url-section">
+      <label class="section-label">Website URL</label>
+      <div class="url-input-wrapper">
+        <input type="text" class="form-control" placeholder="Paste the website URL of your chosen professor..." />
+        <button class="btn-primary scrape-btn">Analyze Website</button>
+      </div>
+    </div>
+
+    <div class="split-layout">
+
+      <div class="left-panel">
+
+        <div class="summary-box">
+          <span class="placeholder-text">SUMMARY OUTPUT<br><small>(Content will appear here after analysis)</small></span>
+        </div>
+
+        <div class="papers-section">
+          <label class="section-label">Research Papers</label>
+          
+          <div class="papers-scroller" id="documents-list">
+            <p style="color: #666; text-align: center; padding: 20px;">No documents uploaded yet</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="right-panel">
+        <div class="chat-interface">
+          <div class="chat-header">
+            <h3>Research Assistant</h3>
+            <span class="status-dot"></span>
+          </div>
+          
+          <div class="chat-history">
+            <div class="empty-state">
+              <div class="ai-icon">AI</div>
+              <p>Once the papers are analyzed, ask me anything about the research.</p>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+  
+            <input type="file" id="chat-file-upload" accept=".pdf,.docx,.txt" style="display: none;" />
+         
+            <button class="chat-attach-btn" onclick="document.getElementById('chat-file-upload').click();">
+              +
+            </button>
+          
+            <input type="text" class="chat-input" placeholder="Enter your question here..." >
+            
+            <button class="chat-send-btn">SEND</button>
+          </div>
+          
+          <div id="file-preview-area" style="display: none; padding: 0 20px 10px 20px; color: #89c2ff; font-size: 0.8rem;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
+
