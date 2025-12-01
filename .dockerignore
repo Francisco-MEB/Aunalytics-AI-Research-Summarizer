@@ -1,0 +1,50 @@
+# Docker ignore file for Cloud Run deployment
+# Exclude unnecessary files to reduce image size
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+env/
+
+# Environment files (secrets managed separately in Cloud Run)
+.env
+.env.example
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data files (not needed in container)
+data/
+embeddings/outputs/
+upload/
+
+# Documentation
+*.md
+docs/
+
+# Tests
+tests/
+test*.py
+*_test.py
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large model caches (will be downloaded on first run)
+.cache/
