@@ -4,6 +4,7 @@ from langchain_core.documents import Document
 from sentence_transformers import SentenceTransformer
 import psycopg2
 import google.generativeai as genai
+from db_connection import get_db_connection
 
 
 class QASystem:
@@ -19,11 +20,6 @@ class QASystem:
         # Store user_id for RLS
         self.user_id = user_id
         
-        # Initialize database connection
-        self.db_url = os.getenv("DATABASE_URL")
-        if not self.db_url:
-            raise ValueError("DATABASE_URL environment variable not set")
-        
         # Initialize Gemini
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         if not self.gemini_api_key:
@@ -32,18 +28,21 @@ class QASystem:
         genai.configure(api_key=self.gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
     
-    def retrieve_context(self, question: str) -> List[Document]:
+    def retrieve_context(self, question: str, top_k: int = 4) -> List[Document]:
         """
         Retrieves the top-k most similar text chunks from the pgvector database
         based on the user's question. Respects RLS if user_id is set.
+        
+        Args:
+            question: The user's question
+            top_k: Number of documents to retrieve (default 4, higher for summaries)
         """
         # Embed the user's question
         query_vector = self.model.encode(question, normalize_embeddings=True).tolist()
-
+        
         # Connect to PostgreSQL and search
         try:
-            with psycopg2.connect(self.db_url) as conn, conn.cursor() as cur:
-                # If user_id is set, filter by it (RLS will also enforce this)
+            with get_db_connection() as conn, conn.cursor() as cur:
                 if self.user_id:
                     cur.execute(
                         """
@@ -51,31 +50,28 @@ class QASystem:
                         FROM documents
                         WHERE user_id = %s
                         ORDER BY embedding <=> %s::vector
-                        LIMIT 4;
+                        LIMIT %s;
                         """,
-                        (query_vector, self.user_id, query_vector)
+                        (query_vector, self.user_id, query_vector, top_k)
                     )
                 else:
-                    # No user_id filter - search all accessible documents
                     cur.execute(
                         """
                         SELECT doc_id, content, 1 - (embedding <=> %s::vector) AS similarity
                         FROM documents
                         ORDER BY embedding <=> %s::vector
-                        LIMIT 4;
+                        LIMIT %s;
                         """,
-                        (query_vector, query_vector)
+                        (query_vector, query_vector, top_k)
                     )
                 rows = cur.fetchall()
-
-            # Wrap rows into LangChain Document objects
-            retrieved_docs = [
-                Document(
-                    page_content=row[1],
-                    metadata={"doc_id": row[0], "score": row[2]}
-                )
-                for row in rows
-            ]
+                retrieved_docs = [
+                    Document(
+                        page_content=row[1],
+                        metadata={"doc_id": row[0], "score": row[2]}
+                    )
+                    for row in rows
+                ]
             
             return retrieved_docs
             
@@ -128,10 +124,20 @@ Answer:"""
     
     def ask_question(self, question: str) -> dict:
         """Orchestrate the whole QA process"""
-        print(f"🔍 Searching for relevant context...")
-        context = self.retrieve_context(question)
+        # Check if this is a summarization request
+        is_summary = any(word in question.lower() for word in ['summarize', 'summary', 'overview', 'what is this about'])
         
-        print(f"📚 Found {len(context)} relevant documents")
+        if is_summary:
+            print("[PROCESSING] Summarization request detected")
+            print("[RETRIEVAL]  Fetching top 15 most relevant documents...")
+            context = self.retrieve_context(question, top_k=15)
+            print(f"[RETRIEVED]  {len(context)} documents found")
+        else:
+            print("[PROCESSING] Searching knowledge base...")
+            context = self.retrieve_context(question, top_k=4)
+            print(f"[RETRIEVED]  {len(context)} relevant documents")
+        
+        print("[GENERATING] Creating response with AI...")
         answer = self.generate_answer(question, context)
         
         return {
@@ -145,44 +151,75 @@ Answer:"""
 def main():
     """Main function to run the QA system"""
     import argparse
+    from dotenv import load_dotenv
+    load_dotenv()
     
     parser = argparse.ArgumentParser(description="Research QA System with RLS support")
-    parser.add_argument("--user-id", dest="user_id", type=str, default=None,
-                       help="User UUID for Row Level Security (optional)")
+    parser.add_argument("--user-id", dest="user_id", type=str, required=True,
+                       help="User UUID for Row Level Security (required)")
     args = parser.parse_args()
+    
+    # Print header
+    print("\n" + "="*70)
+    print(" "*20 + "RESEARCH QA SYSTEM")
+    print("="*70)
     
     try:
         qa_system = QASystem(user_id=args.user_id)
-        print("🚀 QA System initialized successfully!")
+        print("\n[SYSTEM] Initialization successful")
         if args.user_id:
-            print(f"🔑 RLS enabled - Querying documents for user: {args.user_id}")
-        else:
-            print("🌐 RLS disabled - Querying all accessible documents")
-        print("💡 Make sure your DATABASE_URL environment variable is set")
+            print(f"[USER]   {args.user_id[:8]}...{args.user_id[-8:]}")
+        print("\n" + "-"*70)
+        print("Type 'quit' or 'exit' to close the system")
+        print("-"*70)
         
         while True:
-            question = input("\n❓ Enter your question (or 'quit' to exit): ").strip()
+            question = input("\n[QUESTION] > ").strip()
             if question.lower() in ['quit', 'exit', 'q']:
-                print("👋 Goodbye!")
+                print("\n" + "="*70)
+                print("Thank you for using the Research QA System")
+                print("="*70 + "\n")
                 break
             
             if not question:
                 continue
             
+            print("\n" + "-"*70)
             # Process the question
             result = qa_system.ask_question(question)
             
-            # Display results
-            print(f"\n💡 Answer: {result['answer']}")
+            # Display results with better formatting
+            print("\n[ANSWER]")
+            print("-"*70)
+            print(result['answer'])
+            print("-"*70)
+            
             if result['context']:
-                print(f"\n📖 Sources ({result['num_sources']}):")
-                for i, doc in enumerate(result['context'], 1):
-                    print(f"  {i}. Score: {doc.metadata.get('score', 'N/A'):.3f}")
-                    print(f"     {doc.page_content[:100]}...")
+                num_sources = result['num_sources']
+                print(f"\n[SOURCES] {num_sources} document(s) retrieved")
+                
+                # Only show source previews if there are 10 or fewer
+                if num_sources <= 10:
+                    print("-"*70)
+                    for i, doc in enumerate(result['context'], 1):
+                        score = doc.metadata.get('score', 0)
+                        print(f"\n  [{i}] Relevance: {score:.3f}")
+                        preview = doc.page_content[:150].replace('\n', ' ')
+                        print(f"      {preview}...")
+                else:
+                    print(f"      (Too many to display - used {num_sources} chunks)")
+            print("-"*70)
                     
     except Exception as e:
-        print(f"❌ Error starting QA system: {e}")
-        print("💡 Make sure your DATABASE_URL is set and your database is accessible")
+        print("\n" + "="*70)
+        print("[ERROR] Failed to initialize QA system")
+        print("="*70)
+        print(f"\nDetails: {e}")
+        print("\nPlease verify:")
+        print("  - Database credentials in .env file")
+        print("  - Network connection to database")
+        print("  - User ID is valid")
+        print("="*70 + "\n")
 
 
 if __name__ == "__main__":

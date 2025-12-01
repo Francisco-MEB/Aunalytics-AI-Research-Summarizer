@@ -15,6 +15,10 @@ from pypdf import PdfReader
 import psycopg2
 from psycopg2.extras import execute_values
 
+# Add parent directory to path for db_connection import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db_connection import get_db_connection
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -86,18 +90,17 @@ def embed_chunks(chunks: List[Dict], model_name: str, batch_size: int = 64) -> L
 
 # ==================== SUPABASE DATABASE OPERATIONS ====================
 
-def store_to_supabase(chunks: List[Dict], vectors: List[List[float]], source_file: str, db_url: str, user_id: str = None):
+def store_to_supabase(chunks: List[Dict], vectors: List[List[float]], source_file: str, user_id: str = None):
     """Store chunks and embeddings directly in Supabase.
     
     Args:
         chunks: List of text chunks with metadata
         vectors: List of embedding vectors
         source_file: Path to source document
-        db_url: PostgreSQL connection string
         user_id: Optional UUID for RLS. If None, data is accessible to all authenticated users.
     """
     
-    conn = psycopg2.connect(db_url)
+    conn = get_db_connection()
     
     try:
         # Prepare data for batch insert
@@ -135,10 +138,10 @@ def store_to_supabase(chunks: List[Dict], vectors: List[List[float]], source_fil
             )
             conn.commit()
         
-        print(f"✅ Stored {len(data_to_insert)} chunks in Supabase")
+        print(f"SUCCESS: Stored {len(data_to_insert)} chunks in Supabase")
         
     except Exception as e:
-        print(f"❌ Database error: {e}")
+        print(f"ERROR: Database error: {e}")
         conn.rollback()
         raise
     finally:
@@ -155,8 +158,6 @@ def main() -> int:
     # Required arguments
     p.add_argument("--in", dest="inp", required=True, 
                    help="Input file path (.txt, .pdf, or .docx)")
-    p.add_argument("--db-url", dest="db_url", required=False,
-                   help="Supabase PostgreSQL connection string (or set DATABASE_URL env var)")
     
     # Optional arguments, for the command line
     p.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2",
@@ -167,18 +168,12 @@ def main() -> int:
                    help="Overlap between chunks (characters)")
     p.add_argument("--batch", dest="batch", type=int, default=64,
                    help="Embedding batch size")
-    p.add_argument("--user-id", dest="user_id", type=str, default=None,
-                   help="User UUID for Row Level Security (optional)")
+    p.add_argument("--user-id", dest="user_id", type=str, required=True,
+                   help="User UUID for Row Level Security (required)")
     p.add_argument("--clean", dest="clean", action="store_true",
                    help="Delete all existing documents for this user before uploading")
     
     args = p.parse_args()
-    
-    # Get database URL from arg or environment
-    db_url = args.db_url or os.getenv("DATABASE_URL")
-    if not db_url:
-        print("Error: Database URL required. Use --db-url or set DATABASE_URL", file=sys.stderr)
-        return 1
     
     # Validate input file exists
     if not os.path.isfile(args.inp):
@@ -186,26 +181,26 @@ def main() -> int:
         return 2
     
     # Read document
-    print(f"\n📖 Reading document: {args.inp}")
+    print(f"\nReading document: {args.inp}")
     try:
         text = read_document(args.inp)
     except Exception as e:
-        print(f"❌ Error reading document: {e}", file=sys.stderr)
+        print(f"ERROR: Error reading document: {e}", file=sys.stderr)
         return 3
     
     if not text.strip():
-        print(f"❌ Error: Document is empty or contains only whitespace.", file=sys.stderr)
+        print(f"ERROR: Document is empty or contains only whitespace.", file=sys.stderr)
         return 4
     
-    print(f"✅ Read {len(text)} characters from document")
+    print(f"SUCCESS: Read {len(text)} characters from document")
     
     # Chunk the text
-    print(f"\n✂️  Chunking text (chunk_size={args.chunk}, overlap={args.overlap})...")
+    print(f"\nChunking text (chunk_size={args.chunk}, overlap={args.overlap})...")
     chunks = chunk_text(text, chunk_size=args.chunk, chunk_overlap=args.overlap)
-    print(f"✅ Created {len(chunks)} chunks")
+    print(f"SUCCESS: Created {len(chunks)} chunks")
     
     if not chunks:
-        print("❌ Error: No chunks were created from the input text.", file=sys.stderr)
+        print("ERROR: No chunks were created from the input text.", file=sys.stderr)
         return 5
     
     # Add metadata
@@ -217,45 +212,45 @@ def main() -> int:
         })
     
     # Generate embeddings
-    print(f"\n🧠 Generating embeddings using model '{args.model}'...")
+    print(f"\nGenerating embeddings using model '{args.model}'...")
     try:
         vectors = embed_chunks(chunks, model_name=args.model, batch_size=args.batch)
     except Exception as e:
-        print(f"❌ Error generating embeddings: {e}", file=sys.stderr)
+        print(f"ERROR: Error generating embeddings: {e}", file=sys.stderr)
         return 6
     
-    print(f"✅ Generated {len(vectors)} embeddings (384 dimensions each)")
+    print(f"SUCCESS: Generated {len(vectors)} embeddings (384 dimensions each)")
     
     # Clean old data if requested
     if args.clean:
-        print(f"\n🧹 Cleaning old documents...")
+        print(f"\nCleaning old documents...")
         try:
-            conn = psycopg2.connect(db_url)
+            conn = get_db_connection()
             with conn.cursor() as cur:
                 if args.user_id:
                     cur.execute("DELETE FROM documents WHERE user_id = %s;", (args.user_id,))
                     deleted = cur.rowcount
-                    print(f"✅ Deleted {deleted} old documents for user {args.user_id}")
+                    print(f"SUCCESS: Deleted {deleted} old documents for user {args.user_id}")
                 else:
                     cur.execute("DELETE FROM documents WHERE user_id IS NULL;")
                     deleted = cur.rowcount
-                    print(f"✅ Deleted {deleted} old documents (no user_id)")
+                    print(f"SUCCESS: Deleted {deleted} old documents (no user_id)")
             conn.commit()
             conn.close()
         except Exception as e:
-            print(f"⚠️  Warning: Could not clean old documents: {e}")
+            print(f"WARNING: Could not clean old documents: {e}")
     
     # Store in Supabase
-    print(f"\n💾 Storing data in Supabase...")
+    print(f"\nStoring data in Supabase...")
     if args.user_id:
-        print(f"🔑 Using user_id: {args.user_id} (RLS-protected)")
+        print(f"Using user_id: {args.user_id} (RLS-protected)")
     try:
-        store_to_supabase(chunks, vectors, os.path.normpath(args.inp), db_url, user_id=args.user_id)
+        store_to_supabase(chunks, vectors, os.path.normpath(args.inp), user_id=args.user_id)
     except Exception as e:
-        print(f"❌ Error storing to Supabase: {e}", file=sys.stderr)
+        print(f"ERROR: Error storing to Supabase: {e}", file=sys.stderr)
         return 7
     
-    print(f"\n🎉 SUCCESS! Processed {len(chunks)} chunks from '{args.inp}' and stored in Supabase")
+    print(f"\nSUCCESS! Processed {len(chunks)} chunks from '{args.inp}' and stored in Supabase")
     return 0
 
 
