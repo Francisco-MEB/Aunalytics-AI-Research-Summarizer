@@ -72,6 +72,10 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.0
 python-multipart==0.0.9  # For file uploads
 
+# Web scraping
+beautifulsoup4==4.12.3  # HTML parsing
+requests==2.32.5  # HTTP requests (already in list but ensuring version)
+
 # Utility packages
 python-dotenv==1.0.0  # For loading environment variables from .env file
 typing-extensions==4.8.0  # Extended typing support

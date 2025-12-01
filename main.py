@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import os
 import sys
 import uuid
@@ -16,8 +16,9 @@ import importlib.util
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Import our QA system
+# Import our QA system and scraper
 from qa_system import QASystem
+from scraper import ProfessorScraper
 
 # Import ingestion utilities - add embeddings to path first
 sys.path.insert(0, str(Path(__file__).parent / "embeddings"))
@@ -80,6 +81,31 @@ class UploadResponse(BaseModel):
     file_id: str
     chunks_created: int
     user_id: str
+
+class ScrapeRequest(BaseModel):
+    professor_url: str
+    user_id: str
+    max_papers: int = 10
+
+class PaperInfo(BaseModel):
+    title: str
+    authors: str
+    year: str
+    abstract: str
+    url: Optional[str] = None
+    source: str
+
+class ScrapeResponse(BaseModel):
+    message: str
+    professor_url: str
+    scholar_url: Optional[str] = None
+    source: str
+    papers_found: int
+    papers: List[PaperInfo]
+    bio_info: Optional[dict] = None
+    chunks_created: int
+    error: Optional[str] = None
+
 
 
 # ============= ENDPOINTS =============
@@ -192,6 +218,105 @@ async def upload_document(
         # Clean up temporary file
         if temp_path.exists():
             temp_path.unlink()
+
+
+@app.post("/api/scrape", response_model=ScrapeResponse)
+async def scrape_professor_website(request: ScrapeRequest):
+    """
+    Scrape a professor's website for research papers
+    Finds Google Scholar, Academia.edu, or ResearchGate profiles
+    Extracts paper titles and abstracts, then embeds and stores them
+    """
+    try:
+        print(f"[API] Scraping request for: {request.professor_url}")
+        
+        # Initialize scraper
+        scraper = ProfessorScraper()
+        
+        # Scrape the website
+        scrape_result = scraper.scrape_professor_website(
+            request.professor_url,
+            max_papers=request.max_papers
+        )
+        
+        if scrape_result["error"]:
+            raise HTTPException(status_code=500, detail=scrape_result["error"])
+        
+        if not scrape_result["papers"]:
+            raise HTTPException(
+                status_code=404,
+                detail="No papers found. Could not locate Google Scholar, Academia.edu, or ResearchGate profile."
+            )
+        
+        # Process and embed the abstracts
+        print(f"[API] Processing {len(scrape_result['papers'])} papers for user {request.user_id[:8]}...")
+        
+        total_chunks = 0
+        
+        for paper in scrape_result["papers"]:
+            # Combine title and abstract for better context
+            paper_text = f"Title: {paper['title']}\n\nAuthors: {paper['authors']}\n\nAbstract: {paper['abstract']}"
+            
+            # Chunk the paper (abstracts might be long)
+            chunks = chunk_text(paper_text, chunk_size=500, chunk_overlap=50)
+            
+            if not chunks:
+                continue
+            
+            # Add metadata
+            for i, chunk in enumerate(chunks):
+                chunk["id"] = str(uuid.uuid4())
+                chunk["metadata"]["source"] = f"{paper['title']} ({paper['year']})"
+                chunk["metadata"]["paper_url"] = paper.get('url', '')
+                chunk["metadata"]["authors"] = paper['authors']
+                chunk["metadata"]["year"] = paper['year']
+                chunk["metadata"]["chunk_index"] = i
+            
+            # Generate embeddings
+            vectors = embed_chunks(chunks, model_name="sentence-transformers/all-MiniLM-L6-v2")
+            
+            # Store in database
+            store_chunks_to_db(
+                chunks,
+                vectors,
+                source_file=f"{paper['title']} ({paper['year']})",
+                user_id=request.user_id
+            )
+            
+            total_chunks += len(chunks)
+            print(f"[API] Processed paper: {paper['title'][:50]}... ({len(chunks)} chunks)")
+        
+        # Convert papers to Pydantic models for response
+        paper_models = [
+            PaperInfo(
+                title=p["title"],
+                authors=p["authors"],
+                year=p["year"],
+                abstract=p["abstract"][:500] + "..." if len(p["abstract"]) > 500 else p["abstract"],
+                url=p.get("url"),
+                source=p["source"]
+            )
+            for p in scrape_result["papers"]
+        ]
+        
+        return ScrapeResponse(
+            message=f"Successfully scraped and embedded {len(scrape_result['papers'])} papers",
+            professor_url=request.professor_url,
+            scholar_url=scrape_result.get("scholar_url"),
+            source=scrape_result["source"],
+            papers_found=len(scrape_result["papers"]),
+            papers=paper_models,
+            bio_info=scrape_result.get("bio_info"),
+            chunks_created=total_chunks
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error scraping professor website: {str(e)}"
+        )
 
 
 @app.post("/api/question", response_model=QuestionResponse)
