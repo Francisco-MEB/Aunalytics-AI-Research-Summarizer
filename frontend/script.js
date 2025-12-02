@@ -1,26 +1,20 @@
-// ================================
-// CONFIG
-// ================================
 const API_URL = "http://127.0.0.1:8000";
 let conversationHistory = [];
 
-
-// ================================
-// 1. ANALYZE WEBSITE
-// ================================
 async function analyzeWebsite() {
     const urlInput = document.querySelector(".url-input-wrapper input");
     const summaryBox = document.querySelector(".summary-box");
+    const papersSection = document.querySelector(".papers-section");
     const papersContainer = document.querySelector(".papers-scroller");
     const btn = document.querySelector(".scrape-btn");
 
     const url = urlInput.value.trim();
     if (!url) return alert("Please enter a URL.");
 
-    // UI state
     btn.textContent = "Analyzing...";
     btn.disabled = true;
     summaryBox.innerHTML = `<p style="color:white; font-style:italic;">Analyzing website…</p>`;
+    papersSection.style.display = "none";
 
     try {
         const response = await fetch(`${API_URL}/scrape/analyze`, {
@@ -32,21 +26,21 @@ async function analyzeWebsite() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Backend error");
 
-        // Show summary
         summaryBox.innerHTML = `<p style="color:white;">${data.summary}</p>`;
 
-        // Research papers
         papersContainer.innerHTML = "";
-        data.papers.forEach((paper) => {
+        data.papers.forEach((paper, index) => {
             papersContainer.innerHTML += `
-                <div class="paper-card" onclick="openPaper('${encodeURIComponent(paper.description)}', '${encodeURIComponent(paper.title)}')">
+                <div class="paper-card" style="animation-delay:${index * 0.08}s"
+                     onclick="openPaper('${encodeURIComponent(paper.description)}', '${encodeURIComponent(paper.title)}')">
                     <div class="paper-icon">📄</div>
                     <div class="paper-title">${paper.title}</div>
                 </div>
             `;
         });
 
-        // Enable chat
+        papersSection.style.display = "block";
+
         document.querySelector(".chat-input").disabled = false;
         document.querySelector(".chat-send-btn").disabled = false;
         document.querySelector(".chat-attach-btn").disabled = false;
@@ -60,17 +54,12 @@ async function analyzeWebsite() {
     }
 }
 
-
-
-// ================================
-// 2. CLICKABLE PAPER → show paper text in chat (with typing animation)
-// ================================
 async function openPaper(encodedText, encodedTitle) {
     const text = decodeURIComponent(encodedText);
     const title = decodeURIComponent(encodedTitle);
 
     const historyBox = document.querySelector(".chat-history");
-    historyBox.innerHTML = ""; // clear for clean display
+    historyBox.innerHTML = "";
 
     const container = document.createElement("div");
     container.style.textAlign = "left";
@@ -80,32 +69,18 @@ async function openPaper(encodedText, encodedTitle) {
     historyBox.appendChild(container);
 
     const fullText = `Paper Title: ${title}\n\n${text}`;
-
-    // Type the text slowly
     await typeText(container, fullText, 8);
-
     historyBox.scrollTop = historyBox.scrollHeight;
 }
 
-
-
-// ================================
-// ⭐ CHATGPT TYPING EFFECT
-// ================================
 async function typeText(element, text, speed = 10) {
-    element.innerHTML = "";  
+    element.innerHTML = "";
     for (let i = 0; i < text.length; i++) {
-        element.innerHTML += text[i]
-            .replace(/\n/g, "<br>");  
+        element.innerHTML += text[i].replace(/\n/g, "<br>");
         await new Promise(resolve => setTimeout(resolve, speed));
     }
 }
 
-
-
-// ================================
-// 3. FILE PREVIEW HANDLING
-// ================================
 const fileInput = document.getElementById("chat-file-upload");
 const previewArea = document.getElementById("file-preview-area");
 
@@ -131,11 +106,6 @@ function clearFile() {
     previewArea.innerHTML = "";
 }
 
-
-
-// ================================
-// 4. SEND CHAT MESSAGE (with typing animation)
-// ================================
 async function sendMessage() {
     const input = document.querySelector(".chat-input");
     const historyBox = document.querySelector(".chat-history");
@@ -144,7 +114,6 @@ async function sendMessage() {
 
     if (!message && !file) return;
 
-    // User message UI
     const userDiv = document.createElement("div");
     userDiv.style.textAlign = "right";
     userDiv.style.margin = "10px 0";
@@ -160,7 +129,6 @@ async function sendMessage() {
     historyBox.appendChild(userDiv);
     historyBox.scrollTop = historyBox.scrollHeight;
 
-    // Save conversation
     if (message) {
         conversationHistory.push({ role: "user", content: message });
     }
@@ -168,7 +136,6 @@ async function sendMessage() {
     input.value = "";
     clearFile();
 
-    // Prepare payload
     const formData = new FormData();
     if (message) formData.append("message", message);
     if (file) formData.append("file", file);
@@ -182,14 +149,12 @@ async function sendMessage() {
 
         const data = await response.json();
 
-        // AI response container
         const aiDiv = document.createElement("div");
         aiDiv.style.textAlign = "left";
         aiDiv.style.margin = "10px 0";
         aiDiv.style.color = "white";
         historyBox.appendChild(aiDiv);
 
-        // Type text slowly
         await typeText(aiDiv, data.response, 10);
 
         historyBox.scrollTop = historyBox.scrollHeight;
@@ -207,11 +172,6 @@ async function sendMessage() {
     }
 }
 
-
-
-// ================================
-// 5. EVENT LISTENERS
-// ================================
 document.addEventListener("DOMContentLoaded", () => {
     const analyzeBtn = document.querySelector(".scrape-btn");
     const sendBtn = document.querySelector(".chat-send-btn");

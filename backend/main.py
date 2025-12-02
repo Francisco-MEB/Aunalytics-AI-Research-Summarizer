@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.router_ingest import router as ingest_router
-from api.router_chat import router as chat_router
-from api.router_scrape import router as scrape_router
-from api.router_health import router as health_router
+from backend.api.router_scrape import router as scrape_router
+from backend.api.router_ingest import router as ingest_router
+from backend.api.router_chat import router as chat_router
+from backend.api.router_health import router as health_router
 
 app = FastAPI(title="RAPTOR Research Summarizer API", version="1.0.0")
 
