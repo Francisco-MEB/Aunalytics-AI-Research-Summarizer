@@ -67,10 +67,20 @@ def retrieve_context(question: str, user_id: str, top_k: int = 4) -> List[dict]:
 
 def generate_answer(question: str, context_docs: List[dict]) -> str:
     """Generate answer using Gemini LLM based on retrieved context"""
+
+    # === FALLBACK: No context → normal chatbot ===
     if not context_docs:
-        return "I couldn't find any relevant information to answer your question. Please make sure you've uploaded documents first."
-    
-    # Prepare context from retrieved documents
+        try:
+            fallback = llm.generate_content(
+                f"You are a helpful academic assistant. Answer such that a non-technical person will easily grasp the concept at hand."
+                f"Answer the user's question normally, with no markdown, no bold, no italics, or any other chat formatters. Pure prose.\n\n"
+                f"User question: {question}"
+            )
+            return fallback.text.strip()
+        except Exception:
+            return "I could not generate a response. Please try again."
+
+    # === RAG mode ===
     context_text = ""
     for i, doc in enumerate(context_docs, 1):
         similarity = doc.get('similarity', 'N/A')
@@ -80,8 +90,7 @@ def generate_answer(question: str, context_docs: List[dict]) -> str:
             context_text += f"\n--- Source {i} ---\n"
         context_text += doc.get('content', '')
         context_text += "\n"
-    
-    # Create the prompt for Gemini
+
     prompt = f"""You are a helpful research assistant. Based on the provided context, answer the user's question accurately and comprehensively.
 
 Context from research documents:
@@ -100,17 +109,13 @@ Instructions:
 Answer:"""
 
     try:
-        # Generate response using Gemini
         response = llm.generate_content(prompt)
-        
         if response.text:
             return response.text.strip()
         else:
             return "I apologize, but I couldn't generate a proper response. Please try rephrasing your question."
-            
     except Exception as e:
         print(f"Gemini API error: {e}")
-        # Fallback response if Gemini fails
         preview = "\n\n".join([doc.get('content', '')[:200] + "..." for doc in context_docs[:2]])
         return f"I found {len(context_docs)} relevant documents but encountered an error generating the response. Here's a preview:\n\n{preview}"
 

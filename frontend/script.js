@@ -241,7 +241,7 @@ async function sendMessage() {
                 sourcesDiv.style.margin = "5px 0";
                 sourcesDiv.style.color = "#888";
                 sourcesDiv.style.fontSize = "0.85em";
-                sourcesDiv.innerHTML = `<em>Based on ${data.num_sources} document chunks</em>`;
+                sourcesDiv.innerHTML = `<em>Based on ${data.num_sources} chunks of data</em>`;
                 historyBox.appendChild(sourcesDiv);
             }
 

@@ -18,7 +18,7 @@ def retrieve_chunks_rpc(query_vector, user_id="default", k=8):
     res = supabase.rpc("match_chunks", {
         "query_embedding": query_vector,
         "match_count": k,
-        "user_id": user_id
+        "filter_user_id": user_id
     }).execute()
 
     return res.data or []

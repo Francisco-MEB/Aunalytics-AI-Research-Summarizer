@@ -31,9 +31,7 @@ async def chat_endpoint(
     file: UploadFile = File(None),
 ):
     """
-    Pure LLM chat.
-    No RAG.
-    No Supabase retrieval.
+    Pure LLM chat. 
     Files are optional—they are read and included directly into the prompt.
     """
 
@@ -76,9 +74,6 @@ async def chat_endpoint(
 
     gemini_messages.append({"role": "user", "parts": [full_input]})
 
-    # ------------------------------
-    # 4. Get LLM reply
-    # ------------------------------
     response = model.generate_content(gemini_messages)
     assistant_reply = response.text
 
