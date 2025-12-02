@@ -1,3 +1,5 @@
+# backend/api/router_scrape.py
+
 import os
 import uuid
 import requests
@@ -26,6 +28,10 @@ supabase = create_client(
 genai.configure(api_key=os.getenv("GOOGLE_GEMINI_API_KEY"))
 llm = genai.GenerativeModel("gemini-2.0-flash")
 
+
+# ------------------------------
+# Helper: Extract homepage text
+# ------------------------------
 def extract_text(url):
     try:
         res = requests.get(url, timeout=10)
@@ -33,8 +39,11 @@ def extract_text(url):
         return soup.get_text(" ", strip=True)
     except:
         return ""
-    
 
+
+# ------------------------------
+# Helper: Find Google Scholar link
+# ------------------------------
 def find_scholar_link(url):
     try:
         res = requests.get(url, timeout=10)
@@ -120,6 +129,7 @@ async def analyze(data: dict):
             "source": "google_scholar",
             "embedding": vec
         }).execute()
+
     
     rag_summary = rag_summarize(homepage_text, user_id=user_id, k=8)
 
