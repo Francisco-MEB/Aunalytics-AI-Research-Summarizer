@@ -36,8 +36,8 @@ def retrieve_context(question: str, user_id: str, top_k: int = 4) -> List[dict]:
     # Embed the user's question
     query_vector = embedder.encode(question, normalize_embeddings=True).tolist()
     
+    # Try RPC function first (if it exists)
     try:
-        # Query Supabase with vector similarity search
         response = supabase.rpc(
             'match_chunks',
             {
@@ -48,21 +48,54 @@ def retrieve_context(question: str, user_id: str, top_k: int = 4) -> List[dict]:
             }
         ).execute()
         
-        # Return the matched documents
-        return response.data if response.data else []
+        if response.data and len(response.data) > 0:
+            print(f"Retrieved {len(response.data)} chunks via RPC")
+            return response.data
+            
+    except Exception as e:
+        print(f"RPC retrieval failed: {e}, falling back to direct query")
+    
+    # Fallback: Get all documents for user and compute similarity in Python
+    try:
+        print(f"Using fallback retrieval for user {user_id[:8]}...")
+        response = supabase.table("documents") \
+            .select("doc_id, content, metadata, embedding") \
+            .eq("user_id", user_id) \
+            .execute()
+        
+        if not response.data:
+            print(f"No documents found for user {user_id[:8]}")
+            return []
+        
+        print(f"Found {len(response.data)} total documents")
+        
+        # Compute similarity scores manually
+        import numpy as np
+        docs_with_scores = []
+        
+        query_vec = np.array(query_vector)
+        for doc in response.data:
+            if doc.get('embedding'):
+                doc_vec = np.array(doc['embedding'])
+                # Cosine similarity
+                similarity = np.dot(query_vec, doc_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(doc_vec))
+                docs_with_scores.append({
+                    'doc_id': doc['doc_id'],
+                    'content': doc['content'],
+                    'metadata': doc.get('metadata', {}),
+                    'similarity': float(similarity)
+                })
+        
+        # Sort by similarity and return top-k
+        docs_with_scores.sort(key=lambda x: x['similarity'], reverse=True)
+        top_docs = docs_with_scores[:top_k]
+        
+        print(f"Retrieved {len(top_docs)} chunks via fallback (similarities: {[f'{d['similarity']:.3f}' for d in top_docs[:3]]})")
+        return top_docs
         
     except Exception as e:
-        print(f"Retrieval error: {e}")
-        # Fallback to direct query if RPC doesn't exist
-        try:
-            response = supabase.table("documents") \
-                .select("doc_id, content, metadata") \
-                .eq("user_id", user_id) \
-                .limit(top_k) \
-                .execute()
-            return response.data if response.data else []
-        except:
-            return []
+        print(f"Fallback retrieval also failed: {e}")
+        return []
 
 
 def generate_answer(question: str, context_docs: List[dict]) -> str:
@@ -130,6 +163,14 @@ async def query_documents(
     - top_k: Number of document chunks to retrieve (default 4, use 10-15 for summaries)
     """
     
+    print(f"\n{'='*70}")
+    print(f"QUERY REQUEST")
+    print(f"{'='*70}")
+    print(f"Message: {message}")
+    print(f"User ID: {user_id}")
+    print(f"Top K: {top_k}")
+    print(f"{'='*70}\n")
+    
     try:
         # Check if this is a summarization request
         is_summary = any(word in message.lower() for word in ['summarize', 'summary', 'overview', 'what is this about'])
@@ -139,6 +180,17 @@ async def query_documents(
         
         # Retrieve relevant context
         context_docs = retrieve_context(message, user_id=user_id, top_k=top_k)
+        
+        print(f"\n{'='*70}")
+        print(f"RETRIEVAL RESULT: Found {len(context_docs)} chunks")
+        if context_docs:
+            for i, doc in enumerate(context_docs[:3], 1):
+                print(f"\nChunk {i}:")
+                print(f"  Similarity: {doc.get('similarity', 'N/A')}")
+                print(f"  Content preview: {doc.get('content', '')[:100]}...")
+        else:
+            print("NO CHUNKS FOUND!")
+        print(f"{'='*70}\n")
         
         # Generate answer
         answer = generate_answer(message, context_docs)
@@ -150,4 +202,7 @@ async def query_documents(
         }
         
     except Exception as e:
+        print(f"ERROR in query_documents: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")

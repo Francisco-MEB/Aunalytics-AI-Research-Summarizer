@@ -8,7 +8,7 @@ import os
 embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 # Gemini model
-genai.configure(api_key=os.getenv("GOOGLE_GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 llm = genai.GenerativeModel("gemini-2.0-flash")
 
 

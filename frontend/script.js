@@ -27,13 +27,22 @@ async function analyzeWebsite() {
         const response = await fetch(`${API_URL}/scrape/analyze`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ url, user_id: USER_ID })
         });
 
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Backend error");
 
         summaryBox.innerHTML = `<p style="color:white;">${data.summary}</p>`;
+        
+        // Show how many chunks were stored
+        if (data.chunks_stored) {
+            const total = data.chunks_stored.homepage + data.chunks_stored.papers + data.chunks_stored.summary;
+            summaryBox.innerHTML += `<p style="color:#888; font-size:0.85em; margin-top:10px;">
+                ✓ Stored ${total} chunks in your knowledge base (Homepage: ${data.chunks_stored.homepage}, 
+                Papers: ${data.chunks_stored.papers}, Summary: ${data.chunks_stored.summary})
+            </p>`;
+        }
 
         papersContainer.innerHTML = "";
         data.papers.forEach((paper, index) => {
@@ -276,5 +285,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     // Show user ID in console for debugging
-    console.log("User ID:", USER_ID);
+    console.log("Session User ID:", USER_ID);
 });
