@@ -1,6 +1,13 @@
 const API_URL = "http://127.0.0.1:8000";
 let conversationHistory = [];
 
+// Generate a user_id for this session (in production, this would come from auth)
+const USER_ID = localStorage.getItem('user_id') || (() => {
+    const id = crypto.randomUUID();
+    localStorage.setItem('user_id', id);
+    return id;
+})();
+
 async function analyzeWebsite() {
     const urlInput = document.querySelector(".url-input-wrapper input");
     const summaryBox = document.querySelector(".summary-box");
@@ -106,6 +113,48 @@ function clearFile() {
     previewArea.innerHTML = "";
 }
 
+async function uploadFile(file) {
+    const historyBox = document.querySelector(".chat-history");
+    
+    // Show uploading status
+    const statusDiv = document.createElement("div");
+    statusDiv.style.textAlign = "center";
+    statusDiv.style.margin = "10px 0";
+    statusDiv.style.color = "#89c2ff";
+    statusDiv.style.fontStyle = "italic";
+    statusDiv.innerHTML = `Uploading and processing ${file.name}...`;
+    historyBox.appendChild(statusDiv);
+    historyBox.scrollTop = historyBox.scrollHeight;
+    
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("user_id", USER_ID);
+        
+        const response = await fetch(`${API_URL}/ingest/`, {
+            method: "POST",
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.detail || "Upload failed");
+        }
+        
+        // Update status with success
+        statusDiv.style.color = "#4ade80";
+        statusDiv.innerHTML = `✓ Successfully processed ${data.num_chunks} chunks from ${file.name}`;
+        
+        return data;
+        
+    } catch (err) {
+        statusDiv.style.color = "#ff6b6b";
+        statusDiv.innerHTML = `✗ Error uploading file: ${err.message}`;
+        throw err;
+    }
+}
+
 async function sendMessage() {
     const input = document.querySelector(".chat-input");
     const historyBox = document.querySelector(".chat-history");
@@ -114,61 +163,101 @@ async function sendMessage() {
 
     if (!message && !file) return;
 
-    const userDiv = document.createElement("div");
-    userDiv.style.textAlign = "right";
-    userDiv.style.margin = "10px 0";
-    userDiv.style.color = "#89c2ff";
-
+    // Display user message
     if (message) {
+        const userDiv = document.createElement("div");
+        userDiv.style.textAlign = "right";
+        userDiv.style.margin = "10px 0";
+        userDiv.style.color = "#89c2ff";
         userDiv.innerHTML = `<strong>You:</strong> ${message}`;
-    }
-    if (file) {
-        userDiv.innerHTML += `<div style="font-size:.85em; opacity:.8; margin-top:5px;">📎 ${file.name}</div>`;
-    }
-
-    historyBox.appendChild(userDiv);
-    historyBox.scrollTop = historyBox.scrollHeight;
-
-    if (message) {
-        conversationHistory.push({ role: "user", content: message });
+        historyBox.appendChild(userDiv);
+        historyBox.scrollTop = historyBox.scrollHeight;
     }
 
     input.value = "";
-    clearFile();
-
-    const formData = new FormData();
-    if (message) formData.append("message", message);
-    if (file) formData.append("file", file);
-    formData.append("history", JSON.stringify(conversationHistory));
-
-    try {
-        const response = await fetch(`${API_URL}/chat/`, {
-            method: "POST",
-            body: formData
-        });
-
-        const data = await response.json();
-
-        const aiDiv = document.createElement("div");
-        aiDiv.style.textAlign = "left";
-        aiDiv.style.margin = "10px 0";
-        aiDiv.style.color = "white";
-        historyBox.appendChild(aiDiv);
-
-        await typeText(aiDiv, data.response, 10);
-
+    
+    // Handle file upload first if present
+    if (file) {
+        try {
+            await uploadFile(file);
+            clearFile();
+        } catch (err) {
+            console.error("Upload error:", err);
+            return; // Don't proceed with query if upload failed
+        }
+    }
+    
+    // If there's a message, query the knowledge base
+    if (message) {
+        const thinkingDiv = document.createElement("div");
+        thinkingDiv.style.textAlign = "left";
+        thinkingDiv.style.margin = "10px 0";
+        thinkingDiv.style.color = "white";
+        thinkingDiv.style.fontStyle = "italic";
+        thinkingDiv.innerHTML = "Thinking...";
+        historyBox.appendChild(thinkingDiv);
         historyBox.scrollTop = historyBox.scrollHeight;
 
-        conversationHistory.push({ role: "assistant", content: data.response });
+        try {
+            const formData = new FormData();
+            formData.append("message", message);
+            formData.append("user_id", USER_ID);
+            
+            // Check if it's a summary request to use more chunks
+            const isSummary = message.toLowerCase().includes('summarize') || 
+                            message.toLowerCase().includes('summary') ||
+                            message.toLowerCase().includes('overview');
+            if (isSummary) {
+                formData.append("top_k", "15");
+            }
+            
+            const response = await fetch(`${API_URL}/query/`, {
+                method: "POST",
+                body: formData
+            });
 
-    } catch (err) {
-        const errDiv = document.createElement("div");
-        errDiv.style.textAlign = "left";
-        errDiv.style.margin = "10px 0";
-        errDiv.style.color = "#ff6b6b";
-        errDiv.innerHTML = "Error contacting server.";
-        historyBox.appendChild(errDiv);
-        console.error(err);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || "Query failed");
+            }
+
+            // Remove thinking message
+            historyBox.removeChild(thinkingDiv);
+
+            // Display AI response
+            const aiDiv = document.createElement("div");
+            aiDiv.style.textAlign = "left";
+            aiDiv.style.margin = "10px 0";
+            aiDiv.style.color = "white";
+            historyBox.appendChild(aiDiv);
+
+            await typeText(aiDiv, data.response, 10);
+            
+            // Show source count
+            if (data.num_sources > 0) {
+                const sourcesDiv = document.createElement("div");
+                sourcesDiv.style.textAlign = "left";
+                sourcesDiv.style.margin = "5px 0";
+                sourcesDiv.style.color = "#888";
+                sourcesDiv.style.fontSize = "0.85em";
+                sourcesDiv.innerHTML = `<em>Based on ${data.num_sources} document chunks</em>`;
+                historyBox.appendChild(sourcesDiv);
+            }
+
+            historyBox.scrollTop = historyBox.scrollHeight;
+
+        } catch (err) {
+            historyBox.removeChild(thinkingDiv);
+            
+            const errDiv = document.createElement("div");
+            errDiv.style.textAlign = "left";
+            errDiv.style.margin = "10px 0";
+            errDiv.style.color = "#ff6b6b";
+            errDiv.innerHTML = `Error: ${err.message}`;
+            historyBox.appendChild(errDiv);
+            console.error(err);
+        }
     }
 }
 
@@ -185,4 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (e.key === "Enter") sendMessage();
         });
     }
+    
+    // Show user ID in console for debugging
+    console.log("User ID:", USER_ID);
 });
