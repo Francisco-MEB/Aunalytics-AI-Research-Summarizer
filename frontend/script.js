@@ -2,11 +2,18 @@ const API_URL = "http://127.0.0.1:8000";
 let conversationHistory = [];
 
 // Generate a user_id for this session (in production, this would come from auth)
-const USER_ID = localStorage.getItem('user_id') || (() => {
+// FOR TESTING: Using fixed user_id to ensure consistency across sessions
+const USE_FIXED_USER_ID = true;  // Set to false for production
+const FIXED_USER_ID = 'test-user-123';
+
+const USER_ID = USE_FIXED_USER_ID ? FIXED_USER_ID : (localStorage.getItem('user_id') || (() => {
     const id = crypto.randomUUID();
     localStorage.setItem('user_id', id);
+    console.log('🆔 NEW USER ID GENERATED:', id);
     return id;
-})();
+})());
+
+console.log('🆔 Current User ID:', USER_ID);
 
 async function analyzeWebsite() {
     const urlInput = document.querySelector(".url-input-wrapper input");

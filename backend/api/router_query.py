@@ -42,7 +42,6 @@ def retrieve_context(question: str, user_id: str, top_k: int = 4) -> List[dict]:
             'match_chunks',
             {
                 'query_embedding': query_vector,
-                'match_threshold': 0.0,
                 'match_count': top_k,
                 'filter_user_id': user_id
             }

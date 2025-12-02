@@ -145,76 +145,103 @@ def embed_and_store_content(text: str, user_id: str, source_name: str, metadata:
 
 @router.post("/analyze")
 async def analyze(data: dict):
-    url = data["url"]
-    user_id = data.get("user_id", "default")
-    
-    print(f"\n{'='*70}")
-    print(f"SCRAPING WEBSITE")
-    print(f"{'='*70}")
-    print(f"URL: {url}")
-    print(f"User ID: {user_id}")
-    print(f"{'='*70}\n")
+    try:
+        url = data["url"]
+        user_id = data.get("user_id", "default")
+        
+        print(f"\n{'='*70}")
+        print(f"SCRAPING WEBSITE")
+        print(f"{'='*70}")
+        print(f"URL: {url}")
+        print(f"User ID: {user_id}")
+        print(f"{'='*70}\n")
 
-    # 1. Extract homepage text
-    homepage_text = extract_text(url)
-    
-    # 2. Chunk and store homepage content
-    homepage_chunks = 0
-    if homepage_text:
-        homepage_chunks = embed_and_store_content(
-            text=homepage_text,
-            user_id=user_id,
-            source_name=url,
-            metadata={"url": url, "type": "homepage"}
-        )
-        print(f"Stored {homepage_chunks} chunks from homepage")
+        # 1. Extract homepage text
+        print("Step 1: Extracting homepage text...")
+        homepage_text = extract_text(url)
+        print(f"Extracted {len(homepage_text)} characters")
+        
+        # 2. Chunk and store homepage content
+        homepage_chunks = 0
+        if homepage_text:
+            print("Step 2: Storing homepage chunks...")
+            homepage_chunks = embed_and_store_content(
+                text=homepage_text,
+                user_id=user_id,
+                source_name=url,
+                metadata={"url": url, "type": "homepage"}
+            )
+            print(f"Stored {homepage_chunks} chunks from homepage")
 
-    # 3. Find and process Google Scholar papers
-    scholar_url = find_scholar_link(url)
-    papers = []
-    if scholar_url:
-        author_id = extract_author_id(scholar_url)
-        if author_id:
-            papers = get_scholar_papers(author_id)
+        # 3. Find and process Google Scholar papers
+        print("Step 3: Finding Google Scholar papers...")
+        scholar_url = find_scholar_link(url)
+        papers = []
+        if scholar_url:
+            author_id = extract_author_id(scholar_url)
+            if author_id:
+                print(f"Found author ID: {author_id}")
+                papers = get_scholar_papers(author_id)
+                print(f"Found {len(papers)} papers")
 
-    # 4. Store each paper's abstract as chunks
-    paper_chunks = 0
-    for p in papers:
-        text = p["description"]
-        title = p["title"]
+        # 4. Store each paper's abstract as chunks
+        paper_chunks = 0
+        for p in papers:
+            text = p["description"]
+            title = p["title"]
 
-        if not text:
-            continue
+            if not text:
+                continue
 
-        chunks_stored = embed_and_store_content(
-            text=text,
-            user_id=user_id,
-            source_name=f"Paper: {title}",
-            metadata={"title": title, "type": "research_paper"}
-        )
-        paper_chunks += chunks_stored
+            chunks_stored = embed_and_store_content(
+                text=text,
+                user_id=user_id,
+                source_name=f"Paper: {title}",
+                metadata={"title": title, "type": "research_paper"}
+            )
+            paper_chunks += chunks_stored
 
-    print(f"Stored {paper_chunks} chunks from {len(papers)} papers")
+        print(f"Stored {paper_chunks} chunks from {len(papers)} papers")
 
-    # 5. Generate summary using RAG
-    rag_summary = rag_summarize(homepage_text, user_id=user_id, k=8)
-    
-    # 6. Store the summary itself as a document
-    if rag_summary:
-        summary_chunks = embed_and_store_content(
-            text=rag_summary,
-            user_id=user_id,
-            source_name=f"Summary of {url}",
-            metadata={"url": url, "type": "ai_summary"}
-        )
-        print(f"Stored {summary_chunks} chunks from summary")
+        # 5. Generate summary using RAG
+        print("Step 5: Generating RAG summary...")
+        rag_summary = rag_summarize(homepage_text, user_id=user_id, k=8)
+        print(f"Generated summary: {len(rag_summary) if rag_summary else 0} characters")
+        
+        # 6. Store the summary itself as a document
+        summary_chunks = 0
+        if rag_summary:
+            print("Step 6: Storing summary chunks...")
+            summary_chunks = embed_and_store_content(
+                text=rag_summary,
+                user_id=user_id,
+                source_name=f"Summary of {url}",
+                metadata={"url": url, "type": "ai_summary"}
+            )
+            print(f"Stored {summary_chunks} chunks from summary")
 
-    return {
-        "summary": rag_summary,
-        "papers": papers,
-        "chunks_stored": {
-            "homepage": homepage_chunks,
-            "papers": paper_chunks,
-            "summary": summary_chunks if rag_summary else 0
+        print(f"\n{'='*70}")
+        print("SCRAPING COMPLETE")
+        print(f"{'='*70}\n")
+
+        return {
+            "summary": rag_summary,
+            "papers": papers,
+            "chunks_stored": {
+                "homepage": homepage_chunks,
+                "papers": paper_chunks,
+                "summary": summary_chunks
+            }
         }
-    }
+    
+    except Exception as e:
+        print(f"\n{'='*70}")
+        print(f"ERROR IN SCRAPE ENDPOINT")
+        print(f"{'='*70}")
+        print(f"Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*70}\n")
+        
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))

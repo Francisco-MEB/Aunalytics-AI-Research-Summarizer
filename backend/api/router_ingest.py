@@ -98,12 +98,15 @@ def store_to_supabase(chunks: List[Dict], vectors: List[List[float]], source_fil
     data_to_insert = []
     for i, (chunk, vector) in enumerate(zip(chunks, vectors)):
         doc_id = str(uuid.uuid4())
+        chunk_id = f"{source_file}_chunk_{i}"
         metadata = {
             "source_file": source_file,
-            "chunk_index": i
+            "chunk_index": i,
+            "chunk_id": chunk_id
         }
         data_to_insert.append({
             "doc_id": doc_id,
+            "chunk_id": chunk_id,
             "content": chunk["text"],
             "embedding": vector,
             "metadata": metadata,
