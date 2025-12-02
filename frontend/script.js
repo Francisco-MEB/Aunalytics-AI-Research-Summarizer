@@ -1,74 +1,124 @@
-const API_URL = "http://127.0.0.1:8000"; // Ensure this matches your FastAPI port
+// ================================
+// CONFIG
+// ================================
+const API_URL = "http://127.0.0.1:8000";
+let conversationHistory = [];
 
-// --- 1. ANALYZE WEBSITE LOGIC ---
+
+// ================================
+// 1. ANALYZE WEBSITE
+// ================================
 async function analyzeWebsite() {
-    const urlInput = document.querySelector('.url-input-wrapper input');
-    const summaryBox = document.querySelector('.summary-box');
-    const papersContainer = document.querySelector('.papers-scroller');
-    const btn = document.querySelector('.scrape-btn');
-    
-    const url = urlInput.value;
-    if (!url) return alert("Please enter a URL");
+    const urlInput = document.querySelector(".url-input-wrapper input");
+    const summaryBox = document.querySelector(".summary-box");
+    const papersContainer = document.querySelector(".papers-scroller");
+    const btn = document.querySelector(".scrape-btn");
 
-    // UI: Show loading state
+    const url = urlInput.value.trim();
+    if (!url) return alert("Please enter a URL.");
+
+    // UI state
     btn.textContent = "Analyzing...";
     btn.disabled = true;
-    summaryBox.innerHTML = "<p style='color:white; font-style:italic;'>Running AI analysis... this may take a moment.</p>";
+    summaryBox.innerHTML = `<p style="color:white; font-style:italic;">Analyzing website…</p>`;
 
     try {
-        // Send data to FastAPI
-        const response = await fetch(`${API_URL}/analyze`, {
+        const response = await fetch(`${API_URL}/scrape/analyze`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: url })
+            body: JSON.stringify({ url })
         });
 
         const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Backend error");
 
-        // UI: Update Summary
-        summaryBox.innerHTML = `<p style="color:white; line-height: 1.6;">${data.summary}</p>`;
+        // Show summary
+        summaryBox.innerHTML = `<p style="color:white;">${data.summary}</p>`;
 
-        // UI: Update Papers (Clear old ones, add new ones)
-        papersContainer.innerHTML = ""; 
-        data.papers.forEach(paper => {
-            const paperCard = `
-                <div class="paper-card">
-                    <div class="paper-icon">${paper.icon}</div>
+        // Research papers
+        papersContainer.innerHTML = "";
+        data.papers.forEach((paper) => {
+            papersContainer.innerHTML += `
+                <div class="paper-card" onclick="openPaper('${encodeURIComponent(paper.description)}', '${encodeURIComponent(paper.title)}')">
+                    <div class="paper-icon">📄</div>
                     <div class="paper-title">${paper.title}</div>
                 </div>
             `;
-            papersContainer.innerHTML += paperCard;
         });
 
-        // Unlock Chat & Attachment Button
-        document.querySelector('.chat-input').disabled = false;
-        document.querySelector('.chat-send-btn').disabled = false;
-        document.querySelector('.chat-attach-btn').disabled = false; // Unlock paperclip
+        // Enable chat
+        document.querySelector(".chat-input").disabled = false;
+        document.querySelector(".chat-send-btn").disabled = false;
+        document.querySelector(".chat-attach-btn").disabled = false;
 
-    } catch (error) {
-        console.error("Error:", error);
-        summaryBox.innerHTML = "<p style='color:red;'>Error analyzing website. Is the backend running?</p>";
+    } catch (err) {
+        summaryBox.innerHTML = `<p style="color:red;">Error analyzing website. Is the backend running?</p>`;
+        console.error(err);
     } finally {
         btn.textContent = "Analyze Website";
         btn.disabled = false;
     }
 }
 
-// --- 2. FILE ATTACHMENT LOGIC ---
-const fileInput = document.getElementById('chat-file-upload');
-const previewArea = document.getElementById('file-preview-area');
 
-// Listen for file selection
-if(fileInput) {
-    fileInput.addEventListener('change', function() {
+
+// ================================
+// 2. CLICKABLE PAPER → show paper text in chat (with typing animation)
+// ================================
+async function openPaper(encodedText, encodedTitle) {
+    const text = decodeURIComponent(encodedText);
+    const title = decodeURIComponent(encodedTitle);
+
+    const historyBox = document.querySelector(".chat-history");
+    historyBox.innerHTML = ""; // clear for clean display
+
+    const container = document.createElement("div");
+    container.style.textAlign = "left";
+    container.style.margin = "10px 0";
+    container.style.color = "white";
+    container.style.lineHeight = "1.5";
+    historyBox.appendChild(container);
+
+    const fullText = `Paper Title: ${title}\n\n${text}`;
+
+    // Type the text slowly
+    await typeText(container, fullText, 8);
+
+    historyBox.scrollTop = historyBox.scrollHeight;
+}
+
+
+
+// ================================
+// ⭐ CHATGPT TYPING EFFECT
+// ================================
+async function typeText(element, text, speed = 10) {
+    element.innerHTML = "";  
+    for (let i = 0; i < text.length; i++) {
+        element.innerHTML += text[i]
+            .replace(/\n/g, "<br>");  
+        await new Promise(resolve => setTimeout(resolve, speed));
+    }
+}
+
+
+
+// ================================
+// 3. FILE PREVIEW HANDLING
+// ================================
+const fileInput = document.getElementById("chat-file-upload");
+const previewArea = document.getElementById("file-preview-area");
+
+if (fileInput) {
+    fileInput.addEventListener("change", function () {
         const file = this.files[0];
         if (file) {
-            // Show file name preview
-            previewArea.style.display = 'block';
+            previewArea.style.display = "block";
             previewArea.innerHTML = `
                 <div class="file-selected-badge">
                     📄 ${file.name}
-                    <span class="remove-file-btn" onclick="clearFile()" style="margin-left:8px; cursor:pointer; color:#ff6b6b;">✖</span>
+                    <span class="remove-file-btn" onclick="clearFile()" 
+                          style="margin-left:8px; cursor:pointer; color:#ff6b6b;">✖</span>
                 </div>
             `;
         }
@@ -76,74 +126,103 @@ if(fileInput) {
 }
 
 function clearFile() {
-    fileInput.value = ''; // Clear the actual input
-    previewArea.style.display = 'none'; // Hide preview text
-    previewArea.innerHTML = '';
+    fileInput.value = "";
+    previewArea.style.display = "none";
+    previewArea.innerHTML = "";
 }
 
-// --- 3. CHAT LOGIC ---
-async function sendMessage() {
-    const input = document.querySelector('.chat-input');
-    const history = document.querySelector('.chat-history');
-    const message = input.value;
-    const file = fileInput ? fileInput.files[0] : null;
 
-    // Only send if there is a message OR a file
+
+// ================================
+// 4. SEND CHAT MESSAGE (with typing animation)
+// ================================
+async function sendMessage() {
+    const input = document.querySelector(".chat-input");
+    const historyBox = document.querySelector(".chat-history");
+    const message = input.value.trim();
+    const file = fileInput.files[0] || null;
+
     if (!message && !file) return;
 
-    // 1. Add User Message to UI immediately
-    let userHtml = `<div style="text-align:right; margin: 10px 0; color: #89c2ff;">`;
-    if (message) userHtml += `<div><strong>You:</strong> ${message}</div>`;
-    if (file) userHtml += `<div style="font-size: 0.85em; opacity: 0.8; margin-top:5px; background:rgba(137,194,255,0.1); padding:5px; display:inline-block; border-radius:4px;">📎 Attached: ${file.name}</div>`;
-    userHtml += `</div>`;
-    
-    history.innerHTML += userHtml;
-    history.scrollTop = history.scrollHeight; // Auto scroll down
+    // User message UI
+    const userDiv = document.createElement("div");
+    userDiv.style.textAlign = "right";
+    userDiv.style.margin = "10px 0";
+    userDiv.style.color = "#89c2ff";
 
-    // Clear inputs immediately
+    if (message) {
+        userDiv.innerHTML = `<strong>You:</strong> ${message}`;
+    }
+    if (file) {
+        userDiv.innerHTML += `<div style="font-size:.85em; opacity:.8; margin-top:5px;">📎 ${file.name}</div>`;
+    }
+
+    historyBox.appendChild(userDiv);
+    historyBox.scrollTop = historyBox.scrollHeight;
+
+    // Save conversation
+    if (message) {
+        conversationHistory.push({ role: "user", content: message });
+    }
+
     input.value = "";
     clearFile();
 
-    // 2. Prepare data for Backend (Using FormData for files)
+    // Prepare payload
     const formData = new FormData();
     if (message) formData.append("message", message);
     if (file) formData.append("file", file);
+    formData.append("history", JSON.stringify(conversationHistory));
 
     try {
-        // 3. Send to FastAPI
-        const response = await fetch(`${API_URL}/chat`, {
+        const response = await fetch(`${API_URL}/chat/`, {
             method: "POST",
-            body: formData // No JSON headers needed for FormData
+            body: formData
         });
-        
+
         const data = await response.json();
 
-        // 4. Add AI Response to UI
-        history.innerHTML += `<div style="text-align:left; margin: 10px 0; color: white;"><strong>AI:</strong> ${data.response}</div>`;
-        history.scrollTop = history.scrollHeight; // Auto scroll down
-        
-    } catch (error) {
-        console.error("Chat Error:", error);
-        history.innerHTML += `<div style="text-align:left; margin: 10px 0; color: #ff6b6b;">Error connecting to server.</div>`;
+        // AI response container
+        const aiDiv = document.createElement("div");
+        aiDiv.style.textAlign = "left";
+        aiDiv.style.margin = "10px 0";
+        aiDiv.style.color = "white";
+        historyBox.appendChild(aiDiv);
+
+        // Type text slowly
+        await typeText(aiDiv, data.response, 10);
+
+        historyBox.scrollTop = historyBox.scrollHeight;
+
+        conversationHistory.push({ role: "assistant", content: data.response });
+
+    } catch (err) {
+        const errDiv = document.createElement("div");
+        errDiv.style.textAlign = "left";
+        errDiv.style.margin = "10px 0";
+        errDiv.style.color = "#ff6b6b";
+        errDiv.innerHTML = "Error contacting server.";
+        historyBox.appendChild(errDiv);
+        console.error(err);
     }
 }
 
-// --- 4. EVENT LISTENERS ---
-// Wait for HTML to load before attaching clicks
-document.addEventListener('DOMContentLoaded', () => {
-    const scrapeBtn = document.querySelector('.scrape-btn');
-    const sendBtn = document.querySelector('.chat-send-btn');
-    const chatInput = document.querySelector('.chat-input');
 
-    if(scrapeBtn) scrapeBtn.addEventListener('click', analyzeWebsite);
-    if(sendBtn) sendBtn.addEventListener('click', sendMessage);
-    
-    // Allow pressing "Enter" to send chat
-    if(chatInput) {
-        chatInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+
+// ================================
+// 5. EVENT LISTENERS
+// ================================
+document.addEventListener("DOMContentLoaded", () => {
+    const analyzeBtn = document.querySelector(".scrape-btn");
+    const sendBtn = document.querySelector(".chat-send-btn");
+    const chatInput = document.querySelector(".chat-input");
+
+    if (analyzeBtn) analyzeBtn.addEventListener("click", analyzeWebsite);
+    if (sendBtn) sendBtn.addEventListener("click", sendMessage);
+
+    if (chatInput) {
+        chatInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendMessage();
         });
     }
 });

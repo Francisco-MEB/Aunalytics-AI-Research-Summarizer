@@ -27,6 +27,7 @@ body {
   background-color: #001233;
   color: white;
   line-height: 1.6;
+  overflow: hidden;
 }
 
 
@@ -457,6 +458,7 @@ textarea.form-control {
   align-items: center;
   justify-content: center;
   min-height: 250px;
+  
 }
 
 .placeholder-text {
@@ -468,6 +470,7 @@ textarea.form-control {
 /* --- HORIZONTAL SCROLLABLE PAPERS --- */
 .papers-section {
   /* Container logic handled by flex parent */
+  display: none;
 }
 
 .papers-scroller {
@@ -547,6 +550,9 @@ textarea.form-control {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  min-height: 500px;
+  max-height: 650px;
 }
 
 .chat-header {
@@ -569,9 +575,10 @@ textarea.form-control {
   flex: 1;
   padding: 20px;
   background: rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow-y: auto;
+  display: block;
+  scroll-behavior: smooth;
+  max-height: 100%;
 }
 
 .empty-state {
@@ -626,6 +633,10 @@ textarea.form-control {
   background: #3399ff;
 }
 
+.dashboard-container {
+  margin-top: calc(-1 * (90px - 20px));
+}
+
 /* --- MOBILE RESPONSIVE --- */
 @media (max-width: 900px) {
   .split-layout {
@@ -639,6 +650,23 @@ textarea.form-control {
   
   .right-panel {
     height: 500px; 
+  }
+}
+
+.chat-message {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeInUp 0.35s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
