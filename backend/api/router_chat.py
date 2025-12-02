@@ -1,15 +1,9 @@
-# backend/api/router_chat.py
-
 import os
 import json
 from uuid import uuid4
 from fastapi import APIRouter, UploadFile, File, Form
 
 import google.generativeai as genai
-
-# ------------------------------
-# ENV + MODEL CONFIG
-# ------------------------------
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_KEY)
@@ -19,11 +13,6 @@ model = genai.GenerativeModel(MODEL_NAME)
 
 router = APIRouter(tags=["Chat"])
 
-
-# ------------------------------
-# CHAT ENDPOINT — PURE LLM
-# ------------------------------
-
 @router.post("/")
 async def chat_endpoint(
     message: str = Form(...),
@@ -31,9 +20,7 @@ async def chat_endpoint(
     file: UploadFile = File(None),
 ):
     """
-    Pure LLM chat.
-    No RAG.
-    No Supabase retrieval.
+    Pure LLM chat. Explain as if you are talking to a person from a non-technical background.
     Files are optional—they are read and included directly into the prompt.
     """
 
@@ -75,10 +62,7 @@ async def chat_endpoint(
     )
 
     gemini_messages.append({"role": "user", "parts": [full_input]})
-
-    # ------------------------------
-    # 4. Get LLM reply
-    # ------------------------------
+ 
     response = model.generate_content(gemini_messages)
     assistant_reply = response.text
 
