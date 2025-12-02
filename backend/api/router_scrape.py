@@ -1,5 +1,3 @@
-# backend/api/router_scrape.py
-
 import os
 import uuid
 import requests
@@ -30,10 +28,6 @@ supabase = create_client(
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 llm = genai.GenerativeModel("gemini-2.0-flash")
 
-
-# ------------------------------
-# Helper: Extract homepage text
-# ------------------------------
 def extract_text(url):
     try:
         res = requests.get(url, timeout=10)
@@ -41,11 +35,8 @@ def extract_text(url):
         return soup.get_text(" ", strip=True)
     except:
         return ""
+    
 
-
-# ------------------------------
-# Helper: Find Google Scholar link
-# ------------------------------
 def find_scholar_link(url):
     try:
         res = requests.get(url, timeout=10)
@@ -186,17 +177,18 @@ async def analyze(data: dict):
         if not text:
             continue
 
-        chunks_stored = embed_and_store_content(
-            text=text,
-            user_id=user_id,
-            source_name=f"Paper: {title}",
-            metadata={"title": title, "type": "research_paper"}
-        )
-        paper_chunks += chunks_stored
+        vec = embedder.encode([text])[0].tolist()
 
-    print(f"Stored {paper_chunks} chunks from {len(papers)} papers")
-
-    # 5. Generate summary using RAG
+        supabase.table("documents").insert({
+            "chunk_id": str(uuid.uuid4()),
+            "doc_id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "content": text,
+            "metadata": {"title": title},
+            "source": "google_scholar",
+            "embedding": vec
+        }).execute()
+    
     rag_summary = rag_summarize(homepage_text, user_id=user_id, k=8)
     
     # 6. Store the summary itself as a document

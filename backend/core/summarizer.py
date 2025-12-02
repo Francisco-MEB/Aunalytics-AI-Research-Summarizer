@@ -1,5 +1,3 @@
-# backend/core/summarizer.py
-
 import google.generativeai as genai
 from sentence_transformers import SentenceTransformer
 from .retrieval import retrieve_chunks_rpc
@@ -7,10 +5,8 @@ import os
 
 embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-# Gemini model
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GOOGLE_GEMINI_API_KEY"))
 llm = genai.GenerativeModel("gemini-2.0-flash")
-
 
 def build_rag_prompt(homepage_summary, retrieved_chunks):
     """Construct a clean RAG-enhanced prompt for Gemini."""
@@ -30,7 +26,6 @@ HOMEPAGE SUMMARY:
 ---------------------
 RELEVANT SCHOLARLY CONTEXT (retrieved via embeddings):
 {context_block}
-
 ---------------------
 Produce a SINGLE, smooth, academic summary paragraph describing:
 - the professor's research areas
@@ -47,17 +42,13 @@ Do NOT mention that you used retrieved chunks.
 
 def rag_summarize(homepage_text: str, user_id="default", k=8):
     """Full RAG pipeline → embed homepage → retrieve → summarize."""
-
-    # 1. Embed homepage text
+ 
     query_vec = embedder.encode([homepage_text])[0].tolist()
 
-    # 2. Retrieve chunks from Supabase
     retrieved = retrieve_chunks_rpc(query_vec, user_id=user_id, k=k)
 
-    # 3. Build Gemini RAG prompt
     prompt = build_rag_prompt(homepage_text, retrieved)
 
-    # 4. Generate summary
     try:
         out = llm.generate_content(prompt)
         return out.text.strip()
