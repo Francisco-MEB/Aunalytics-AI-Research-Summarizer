@@ -35,8 +35,8 @@ DB_SERVICE = XE
   <a href="https://www.youtube.com/watch?v=Kj6E2tMiXCs"><strong>Demo Video</strong></a>
 </h1>
 
-![Home Page](./preview/home.png)  
+![Home Page](/preview/home.png)  
 
-![Working Product](./preview/queries.png)
+![Working Product](/preview/queries.png)
 
-![File Upload](./preview/file_upload.png)
+![File Upload](/preview/file_upload.png)
