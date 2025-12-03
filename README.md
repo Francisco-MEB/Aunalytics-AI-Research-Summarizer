@@ -32,7 +32,7 @@ DB_SERVICE = XE
 ```
 
 <h1 align="center">
-  <a href="https://www.youtube.com/watch?v=Kj6E2tMiXCs"><strong>Demo Video</strong></a>
+  <a href="https://youtu.be/DKHe80r78kQ"><strong>Demo Video</strong></a>
 </h1>
 
 ![Home Page](./preview/home.png)  
