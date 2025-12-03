@@ -38,5 +38,3 @@ DB_SERVICE = XE
 ![Home Page](./preview/home.png)  
 
 ![Working Product](./preview/queries.png)
-
-![File Upload](./preview/file_upload.png)
