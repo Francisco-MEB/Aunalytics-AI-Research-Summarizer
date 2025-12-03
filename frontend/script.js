@@ -9,11 +9,11 @@ const FIXED_USER_ID = 'test-user-123';
 const USER_ID = USE_FIXED_USER_ID ? FIXED_USER_ID : (localStorage.getItem('user_id') || (() => {
     const id = crypto.randomUUID();
     localStorage.setItem('user_id', id);
-    console.log('🆔 NEW USER ID GENERATED:', id);
+    console.log('NEW USER ID GENERATED:', id);
     return id;
 })());
 
-console.log('🆔 Current User ID:', USER_ID);
+console.log('Current User ID:', USER_ID);
 
 async function analyzeWebsite() {
     const urlInput = document.querySelector(".url-input-wrapper input");
@@ -42,14 +42,7 @@ async function analyzeWebsite() {
 
         summaryBox.innerHTML = `<p style="color:white;">${data.summary}</p>`;
         
-        // Show how many chunks were stored
-        if (data.chunks_stored) {
-            const total = data.chunks_stored.homepage + data.chunks_stored.papers + data.chunks_stored.summary;
-            summaryBox.innerHTML += `<p style="color:#888; font-size:0.85em; margin-top:10px;">
-                ✓ Stored ${total} chunks in your knowledge base (Homepage: ${data.chunks_stored.homepage}, 
-                Papers: ${data.chunks_stored.papers}, Summary: ${data.chunks_stored.summary})
-            </p>`;
-        }
+
 
         papersContainer.innerHTML = "";
         data.papers.forEach((paper, index) => {

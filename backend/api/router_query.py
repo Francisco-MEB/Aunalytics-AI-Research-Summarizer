@@ -100,7 +100,15 @@ def retrieve_context(question: str, user_id: str, top_k: int = 4) -> List[dict]:
 def generate_answer(question: str, context_docs: List[dict]) -> str:
     """Generate answer using Gemini LLM based on retrieved context"""
     if not context_docs:
-        return "I couldn't find any relevant information to answer your question. Please make sure you've uploaded documents first."
+        try:
+            fallback = llm.generate_content(
+                f"You are a helpful academic assistant. Answer such that a non-technical person will easily grasp the concept at hand."
+                f"Answer the user's question normally, with no markdown, no bold, no italics, or any other chat formatters. Pure prose.\n\n"
+                f"User question: {question}"
+            )
+            return fallback.text.strip()
+        except Exception:
+            return "I could not generate a response. Please try again."
     
     # Prepare context from retrieved documents
     context_text = ""
